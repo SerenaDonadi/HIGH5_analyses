@@ -119,8 +119,34 @@ site_years<-jamtland3 %>%
 site_years10<-site_years %>%
   filter(n_dinstic_years > 9)
 
+# check that there are no sites with the same name in different rivers
+# Count how many unique rivers each site appears in:
+jamtland3 %>%
+  distinct(Lokal, Vattendrag) %>%         # Remove duplicate site-river pairs
+  group_by(Lokal) %>%
+  summarise(n_rivers = n()) %>%
+  filter(n_rivers > 1)              # Keep only sites that appear in multiple rivers
+
+
+
 # select a subset in jamtland3 whose sites match those in the site_years10:
 jamtland3_time_series<-jamtland3 %>%
-  filter(Lokal %in% site_years10$Lokal)
+  filter(Lokal %in% unique(site_years10$Lokal) & Vattendrag %in% unique(site_years10$Vattendrag))
+
+unique(site_years10$Lokal) # 
+unique(jamtland3_time_series$Lokal) # 
+unique(site_years10$Vattendrag) # 
+unique(jamtland3_time_series$Vattendrag) # 
 
 # exploratory plots
+unique(jamtland3_time_series$Lokal) # 77 sites
+unique(jamtland3_time_series$Vattendrag)
+table(jamtland3_time_series$Vattendrag, jamtland3_time_series$Lokal) # 
+
+ggplot(subset(jamtland3_time_series, Vattendrag %in% c("Abbåsån")), 
+              aes(x = ÅR , y = Öring0)) +
+  geom_point()+
+  facet_wrap(~Lokal)+
+  labs(title="Öring0")+
+  theme_classic(base_size=13)
+
