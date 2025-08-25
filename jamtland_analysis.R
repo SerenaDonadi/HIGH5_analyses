@@ -49,7 +49,7 @@ jamtland %>%
 jamtland2 <- jamtland %>% 
   filter(Öring0 != -9)
 
-# check spatial hierarchy:
+##### check spatial hierarchy and missing values:####
 unique(jamtland2$Län)
 unique(jamtland2$Länskod)
 unique(jamtland2$Haro_nr)
@@ -57,7 +57,7 @@ unique(jamtland2$Huvudavrinningsområde) #6 levels
 unique(jamtland2$Hflodomr) #6
 unique(jamtland2$Biflnr)
 unique(jamtland2$Vattendrag ) #476
-unique(jamtland2$Lokal)#687
+unique(jamtland2$Lokal)#687 
 unique(jamtland2$Lokalnr)#67
 
 unique(jamtland2$Syfte)
@@ -69,14 +69,40 @@ unique(jamtland2$Lokalvar)
 table(jamtland2$VTYP_ED)
 table(jamtland2$Typavpop)
 
+# OBS: there are site with no name! 4
+filter(jamtland2, Lokal == " ")
+# assign a name based on coordinates:
+jamtland2a <- jamtland2 %>%
+  mutate(Lokal = ifelse(Lokal == " ", paste("Loc", XKOORLOK, YKOORLOK, sep="_"), Lokal))
 
-head(jamtland)
+# check again:
+filter(jamtland2a, Lokal == " ")
+unique(jamtland2a$Lokal)#713
+
+# I am also afraid that the same Lokal name might be used in different Vattendrag
+# Count how many unique rivers each site appears in:
+jamtland2a %>%
+  distinct(Lokal, Vattendrag) %>%         # Remove duplicate site-river pairs
+  group_by(Lokal) %>%
+  summarise(n_rivers = n()) %>%
+  filter(n_rivers > 1)              # Keep only sites that appear in multiple rivers
+# indeed
+
+#####
+
+# Because of missing names in lokal as well as same name in different rivers, 
+# make a column with the coordinates as a character string, and use it as site name:
+jamtland2b <- jamtland2a %>%
+  mutate(site = paste(XKOORLOK, YKOORLOK, sep = "_"))
+
+
 # retain only variables of interest:
-jamtland3 <- jamtland2 %>% 
+jamtland3 <- jamtland2b %>% 
   select(Öring0, 
          Hflodomr, 
          Vattendrag, 
          Lokal, 
+         site,
          Langd, 
          XKOORLOK, 
          YKOORLOK,
@@ -109,7 +135,7 @@ head(jamtland3)
 # explore hierarchical spatial and temporal structure.
 # how many years per site? first and last year of sampling?
 site_years<-jamtland3 %>% 
-  group_by(Hflodomr,Vattendrag,Lokal) %>% 
+  group_by(Hflodomr,Vattendrag,site) %>% 
   summarise(n_dinstic_years = n_distinct(ÅR),
             first_year = min(ÅR),
             last_year = max(ÅR)) %>% 
@@ -119,32 +145,13 @@ site_years<-jamtland3 %>%
 site_years10<-site_years %>%
   filter(n_dinstic_years > 9)
 
-# check that there are no sites with the same name in different rivers
-# Count how many unique rivers each site appears in:
-jamtland3 %>%
-  distinct(Lokal, Vattendrag) %>%         # Remove duplicate site-river pairs
-  group_by(Lokal) %>%
-  summarise(n_rivers = n()) %>%
-  filter(n_rivers > 1)              # Keep only sites that appear in multiple rivers
-
-
-
 # select a subset in jamtland3 whose sites match those in the site_years10:
 jamtland3_time_series<-jamtland3 %>%
-  filter(Lokal %in% unique(site_years10$Lokal) & Vattendrag %in% unique(site_years10$Vattendrag))
-
-unique(site_years10$Lokal) # 
-unique(jamtland3_time_series$Lokal) # 
-unique(site_years10$Vattendrag) # 
-unique(jamtland3_time_series$Vattendrag) # 
+  filter(site %in% unique(site_years10$site) & Vattendrag %in% unique(site_years10$Vattendrag))
 
 # exploratory plots
-unique(jamtland3_time_series$Lokal) # 77 sites
-unique(jamtland3_time_series$Vattendrag)
-table(jamtland3_time_series$Vattendrag, jamtland3_time_series$Lokal) # 
-
-ggplot(subset(jamtland3_time_series, Vattendrag %in% c("Abbåsån")), 
-              aes(x = ÅR , y = Öring0)) +
+ggplot(subset(jamtland3_time_series, Vattendrag %in% c(Aloppan")), 
+              aes(x = ÅR , y = Öring0) +
   geom_point()+
   facet_wrap(~Lokal)+
   labs(title="Öring0")+
