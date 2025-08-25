@@ -122,3 +122,5 @@ site_years10<-site_years %>%
 # select a subset in jamtland3 whose sites match those in the site_years10:
 jamtland3_time_series<-jamtland3 %>%
   filter(Lokal %in% site_years10$Lokal)
+
+# exploratory plots
