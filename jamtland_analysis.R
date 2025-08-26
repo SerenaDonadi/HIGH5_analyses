@@ -3,8 +3,8 @@ rm(list=ls())
 dir.exists("//storage-dh.slu.se/home$/sedi0002/My Documents/Job/HIGH5")
 setwd("G:/My Drive/HIGH5/HIGH5_data")
 
-# To save the R environment, press the save button in the "Environment" window here on the right. 
-# or (but noit sure it works as well), run this script at the end of your session:
+#### To save the R environment ####
+# press the save button in the "Environment" window here on the right.Or (but noit sure it works as well), run this script at the end of your session:
 save.image(file = "my_environment.RData")
 # When you reopen your project, you can restore the environment by clicking on that file in the "Files" window here on the bottom
 # right, or maybe by using this script (not sure it works well):
