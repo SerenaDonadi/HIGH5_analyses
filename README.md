@@ -25,10 +25,14 @@ should show something
 I received the data from Joacim: all location, only Jämtland and Jämtland filetred according to the criteria listed in the document “filtering”. Keep a variable saying if the whole width has been sampled and use it as predictor. Uso all years, also the old ones. If data are not enough, we can possibly add also Dalarna data.
 
 # Filtering of SERS data
+# by Joacim (when extracting the data)
+- Only retained Quantitative electrofishing (at least two pass fising)
+- Removed fishing with a site length < 18 m
+- Removed fishing sites with fished area < 50 m^2
+# by Serena (included in the scripts)
+- months: July to October
+- I iclude all years for now
 
-* Only retained Quantitative electrofishing (at least two pass fising)
-* Removed fishing with a site length < 18 m
-* Removed fishing sites with fished area < 50 m^2
 
 # questions 
 
@@ -36,7 +40,7 @@ check the meaning of different VIX variables
 
 # notes on Katarina method:
 keep only sites with at least 10 years of data for the times series analysis
-keep only samplings conducted between June and September
+keep only samplings conducted between July and October
 keep sites with either one or more electrofishing passes
 
 breakpoints are calculated using a linear and a quadratic function. then the best model is selected based on AIC.
