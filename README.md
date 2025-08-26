@@ -49,8 +49,22 @@ Question: for good sites (relatively high trout density) with no breakpoints, we
 (null/low trout density) with no breakpoints, shall we keep the 90th quantile or discard the sites from the further analysis? 
 (the one where I use covariates to predict breakpoints)
 My take will be to retain all, but keep track of the reason why no breakpoints were found. That is, potentially use a covariate
-indicating if the site is good or bad (e.g. max density observed, or mean density observed, or Coeff of variation), or potentially
+indicating if the site is good or bad (e.g. mean density at the site is < mean density at subdivision), or potentially
 exclude them at a later stage.
+
+the output of the breakpoint analyses is a table with lots of parameters that keep track of the process.
+It contains also the 90th quantile (q90) in case I want to use that one instead of the breakpoint (clx)
+"thr_val" is the mean density of the subdivision (SD), which can be used as a reference to compare with the mean density of the 
+site to determine whether the sites are "bad ones" (see above)
+
+Katarina found that using q90 or clx (breakpoints) did not make a big difference in the time series analysis, i.e. using q90 is 
+fine, but the difference was bigger in the spatial analyses (with all sites regardless of how many years of sampling, grouped
+according to some variables intervals), and the clx seemed better.
+My thought: this could be due to 1) the variation is larger between than within sites, 2) the grouping is suboptimal, i.e. 
+other variables and/or intervals may better catch the similarities among sites, 3) the constraints used in the calculation
+of the breakpoints results in values very close to the q90th
+
+
 
 
 
