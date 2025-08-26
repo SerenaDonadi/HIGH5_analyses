@@ -148,12 +148,27 @@ site_years10<-site_years %>%
 # select a subset in jamtland3 whose sites match those in the site_years10:
 jamtland3_time_series<-jamtland3 %>%
   filter(site %in% unique(site_years10$site) & Vattendrag %in% unique(site_years10$Vattendrag))
+unique(jamtland3_time_series$site) # 84 sites
 
 # exploratory plots
-ggplot(subset(jamtland3_time_series, Vattendrag %in% c(Aloppan")), 
-              aes(x = ÅR , y = Öring0) +
+ggplot(subset(jamtland3_time_series, Vattendrag %in% c("Aloppan")),
+       aes(x = ÅR , y = Öring0)) +
   geom_point()+
-  facet_wrap(~Lokal)+
-  labs(title="Öring0")+
+  facet_wrap(~site)+
+  labs(title="")+
+  theme_classic(base_size=13)
+
+ggplot(subset(jamtland3_time_series, Vattendrag %in% c("Arån")),
+       aes(x = ÅR , y = Öring0)) +
+  geom_point()+
+  facet_wrap(~site)+
+  labs(title="")+
+  theme_classic(base_size=13)
+
+ggplot(subset(jamtland3_time_series, Vattendrag %in% c("Tvärån")),
+       aes(x = ÅR , y = Öring0)) +
+  geom_point()+
+  facet_wrap(~site)+
+  labs(title="")+
   theme_classic(base_size=13)
 
