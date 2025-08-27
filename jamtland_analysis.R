@@ -301,10 +301,10 @@ get_clx_all_methods_select_qc <- function(
     df, # data.frame input data (one row per observation/visit)
     
     # character vector of columns that uniquely define a site/series grouping (e.g., pass ID and site) 
-    site_vars = c("Vattendrag", "site"), # I use XY as Lokal 
+    site_vars = c("Vdrag", "Lokal"), # I use XY as Lokal 
     
     # name of the response/metric column to model/select on (e.g., 0+ trout density per 100 m^2)
-    density_var = "Öring0",        
+    density_var = "Trout0P",        
     
     # minimum number of rows in a group (e.g., years) required before attempting model fitting/selection
     min_points  = 8, # not needed if only sites with at least 10 years of data are used               
@@ -511,21 +511,103 @@ get_clx_all_methods_select_qc <- function(
 
 
 
-### RUN MODEL ON DATA
+### RUN MODEL ON DATA 
 
 is.data.frame(jamtland3)
 
-#nlsdata <- sers %>% 
-#  filter(Year>1989) %>% 
-#  filter(Month>6 & Month<11) %>% 
-#  filter(!is.na(Trout0P)) %>%
-#  group_by(XY) %>% 
-#  filter(n() > 9)
+# calculate the mean trout0 per catchment as reference value, instead of using the ICES subdivision
+# maybe not needed. Indeed
+jamtland4<-jamtland3 %>%
+  group_by(Hflodomr) %>%
+  mutate(Hflodomr_avg_Oring0 = mean(Öring0))
 
-#df1 <- as.data.frame(nlsdata[,c("XY","SD","VDRAGNAM","LOKALNAM","Trout0P")])
-#colnames(df1) <- c("Lokal","SD","Vdrag","Lokalnam","Trout0P")
+### 1) using avg density of trout per catchment as threshold value for the area
+df1 <- as.data.frame(jamtland3[,c("site","Hflodomr","Vattendrag","Lokal","Öring0")])
+colnames(df1) <- c("Lokal","Hflodomr","Vdrag","Lokalnam","Trout0P")
 
-results.clx <- get_clx_all_methods_select_qc(jamtland3,  
+results.clx <- get_clx_all_methods_select_qc(df1,  
+                                             # Fallback options:
+                                             fallback_when   = "both",  # when fallback should be used if no clx-value: "no_fit","fail_keep","both","never"
+                                             fallback_q90_if = "always", # can also specify if poor sites should be excluded: "never","always","high_mean"
+                                             threshold_by="Hflodomr",  # area for threshold values (example ICES subdivion "SD")
+                                             thr_fun = "mean", # threshold value for area "mean" or "quantile"
+                                             mean_threshold = 0.75,  # specifying quantile if thr_fun="quantile"
+)
+
+#### to divide the data in into ICES subdivisons based on HFLODOMR ####
+
+# Script for HFLODOMR2 (numerical version of HFLODOMR)
+# not needed in my case I think, as Hflodomr is already numeric
+library(plyr)
+jamtland3$HFLODOMR2<-jamtland3$Hflodomr;unique(jamtland3$HFLODOMR2)
+jamtland3$HFLODOMR2<-as.character(jamtland3$HFLODOMR2);unique(jamtland3$HFLODOMR2)
+jamtland3$HFLODOMR2 <- revalue(jamtland3$HFLODOMR2,
+                          c("301000" = "301","89090" = "89.5","88089" = "88.5","92093"="92.5","93094"="93.5","87088"="87.5","94095"="94.5","86087"="86.5","81082"="81.5",
+                            "79080"="79.5","84085"="84.5","80081"= "80.5","96097"="96.5","78079"="78.5","101102"="101.5","76077"="76.5","75076"="75.5",
+                            "102103"="102.5","103104"="103.5","117118"="117.5","74075"="74.5","73074"="73.5","104105"="104.5","105106"="105.5",
+                            "118117"="118.5", # Gotland särskilj 118117 från 117118
+                            "72073"="72.5","107108"="107.5","71072"="71.5","70071"="70.5","108109"="108.5","69070"="69.5",
+                            "68069"="68.5","109110" ="109.5","67068"="67.5","110111"="110.5","66067"="66.5","63064"="63.5","62063"="62.5","111112"="111.5",
+                            #"15016"="15.5",
+                            #"112113"="112.5",
+                            "61062"="61.5" ,"60061"="60.5",
+                            "59060"="59.5","57058" ="57.5","56057"="56.5","54055"="54.5","53054"="53.5","52053"="52.5","50051" ="50.5","48049" ="48.5","47048"="47.5",
+                            "46047"="46.5","45046"="45.5","44045"="44.5","43044"="43.5","42043"="42.5","41042"="41.5","40041"="40.5", "39040"="39.5", 
+                            "38039"="38.5" ,"37038"="37.5","35036"="35.5",
+                            "34035"="34.5","33034"="33.5","32033"="32.5","30031"="30.5","29030"="29.5","28029"="28.5","114115"="114.5",
+                            "26027"="26.5","22023"="22.5","21022"="21.5",
+                            "19020"="19.5","18019"="18.5","17018"="17.5","16017"="16.5","13016"="13.5","2003"="2.5","23024"="23.5"));unique(jamtland3$HFLODOMR2)
+jamtland3$HFLODOMR2<-as.numeric(jamtland3$HFLODOMR2);unique(jamtland3$HFLODOMR2)
+
+### using KM script to assign ICES subdivision based on HFLODOMR2
+
+jamtland3$SD<-NA
+# SD 31
+jamtland3$SD[jamtland3$HFLODOMR2 <= 30]<-"SD31" # Bottenviken # Sept 2020: förut 28 -> 30
+# SD 30
+jamtland3$SD[jamtland3$HFLODOMR2 > 30 & jamtland3$HFLODOMR2 <= 54.5]<-"SD30" # Bottenhavet # aug 2022: before 55
+# SD 29
+jamtland3$SD[(jamtland3$HFLODOMR2 > 54.5 & jamtland3$HFLODOMR2 <= 59)]<-"SD29" # aug 2022: ändrat 55->54.5
+#59. Norrtäljeån, 58. Bröströmmen
+# SD 28 (East of Gotland below)
+jamtland3$SD[(jamtland3$HFLODOMR2 == 117 | jamtland3$HFLODOMR2 == 117.5)]<-"SD28"
+# SD 27 (gränsar mot SD 29, SD 28 och SD 25)
+jamtland3$SD[(jamtland3$HFLODOMR2 > 59 & jamtland3$HFLODOMR2 <= 78) # 78. Hagbyån
+        | (jamtland3$HFLODOMR2 >117.5 &  jamtland3$HFLODOMR2 <=119) ] <-"SD27" # Öland 119
+# SD 28 (East Gotland) (aug 2022)
+jamtland3$SD[jamtland3$HFLODOMR2==118.5 &
+          jamtland3$VDRAGNAM %in% c("Ajkesån","Hyluån","Hauån","Hultungsån","Gothemsån","Vikeån","Vägumeån","Bångån","Lergravsbäcken","Anerån","Vike kanal")]<-"SD28"
+# 79. Bruatorpsån, till mellan 88-89 (närmare 89 än 88). 88. Helgeå, 89. Nybroån
+# SD 25
+jamtland3$SD[jamtland3$HFLODOMR2 > 78 & jamtland3$HFLODOMR2 < 89]<-"SD25" # ungefär
+# 89. Nybroån till innan Sege å
+# SD 24
+jamtland3$SD[jamtland3$HFLODOMR2 >= 89 & jamtland3$HFLODOMR2 < 90]<-"SD24" # ungefär
+# 90. Sege å  94. Råån
+# SD 23
+jamtland3$SD[jamtland3$HFLODOMR2 >= 90 & jamtland3$HFLODOMR2 < 94.5]<-"SD23" # Aug 2022: Korrigerat från 95
+# 95. Vege å till 107. Kungsbackaån
+# SD 21
+jamtland3$SD[jamtland3$HFLODOMR2 >= 94.5 & jamtland3$HFLODOMR2 <= 107]<-"SD21"
+# 107. Kungsbackaån till 116.
+# SD 20
+jamtland3$SD[jamtland3$HFLODOMR2 > 107 & jamtland3$HFLODOMR2 <= 113]<-"SD20"
+# Norge (aug 2022)
+jamtland3$SD[(jamtland3$HFLODOMR2 > 112 & jamtland3$HFLODOMR2 <= 116) | jamtland3$HFLODOMR2== 301]<-"Norway" # Aug 2022: Norge
+
+# unload plyr:
+detach("package:plyr", unload=TRUE)
+
+
+#####
+
+# 2) ### using avg density of trout per SD as threshold value for the area
+# OBS for Jamtland, all rivers are in SD30
+
+df2 <- as.data.frame(jamtland3[,c("site","SD","Vattendrag","Lokal","Öring0")])
+colnames(df2) <- c("Lokal","SD","Vdrag","Lokalnam","Trout0P")
+
+results.clx2 <- get_clx_all_methods_select_qc(df2,  
                                              # Fallback options:
                                              fallback_when   = "both",  # when fallback should be used if no clx-value: "no_fit","fail_keep","both","never"
                                              fallback_q90_if = "always", # can also specify if poor sites should be excluded: "never","always","high_mean"
