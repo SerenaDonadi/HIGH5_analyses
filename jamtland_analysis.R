@@ -55,6 +55,9 @@ jamtland %>%
   filter(Öring0 == -9) 
 # 2 records. maybe typos. Exlude them
 
+# check Beskuggn
+table(jamtland$Beskuggn)
+
 # select which months
 hist(jamtland$MÅNAD)
 
@@ -126,6 +129,21 @@ jamtland2 <- jamtland1 %>%
   filter(Öring0 != -9) %>% # remove records with -9
   group_by(site) %>% 
   filter(n() > 9)
+
+# substitute values "-9" in Beskuggn with NA:
+jamtland2$Beskuggn[jamtland2$Beskuggn == -9] <- NA
+unique(jamtland2$Beskuggn)
+
+# transform Vandhind in a numeric variable: START FROM HERE and then go to last scripts
+table(jamtland2$Vandhind)
+jamtland2$Vandhind_bin<-jamtland2$Vandhind[jamtland2$Vandhind == "Inga"] <- 0
+jamtland2$Vandhind[jamtland2$Vandhind == "Ned"] <- 1
+jamtland2$Vandhind[jamtland2$Vandhind == "Upp"] <- 1
+
+jamtland3$SD<-NA
+# SD 31
+jamtland3$SD[jamtland3$HFLODOMR2 <= 30]<-"SD31"
+
 
 # retain only variables of interest:
 jamtland3 <- jamtland2 %>% 
@@ -583,9 +601,7 @@ is.data.frame(jamtland3)
 
 # calculate the mean trout0 per catchment as reference value, instead of using the ICES subdivision
 # maybe not needed. Indeed
-#jamtland4<-jamtland3 %>%
-#  group_by(Hflodomr) %>%
-#  mutate(Hflodomr_avg_Oring0 = mean(Öring0))
+
 
 ### 1) using avg density of trout per catchment as threshold value for the area
 df1 <- as.data.frame(jamtland3[,c("site","Hflodomr","Vattendrag","Lokal","Öring0")])
@@ -702,19 +718,56 @@ plot_clx_site <- function(raw_df, site_row,
 }
 
 
-# ---- choose a SUBSAMPLE to plot ---------------------------------------------
+### choose a SUBSAMPLE to plot 
 
-# rawdata df1 (annual data (fall) for sea trout sites with >9 y data)
-#df1 <- as.data.frame(nlsdata[,c("XY","SD","VDRAGNAM","LOKALNAM","Trout0P")])
-#colnames(df1) <- c("Lokal","SD","Vdrag","Lokalnam","Trout0P")
+# make a dataset with only the sites (one row per site), and bring along covaraites for later analyses
+jamtland3 <- jamtland2 %>% 
+  select(Öring0,Hflodomr, Vattendrag,site,Lokal,XKOORLOK, YKOORLOK,WGS84_Dec_N,WGS84_Dec_E,
+         Fiskedatum,ÅR,MÅNAD,
+         Bredd, Maxdjup,Medeldju,Substr1,Vattente,Beskuggn,Vandhind,VTYP_ED,Typavpop,Hoh,Avstupp,Avstner,
+         mindistsj,LUTNING_PROM,MEDTEMPAR, MEDT_JULI,VIX,VIX_klass)
+
+head(jamtland3)
+
+
+df.model.site <- df1 %>%
+  group_by(Lokal,Vdrag,Hflodomr,Lokalnam) %>%
+  summarise(n_years = n(), 
+            mean_trout0 = mean(Trout0P, na.rm = TRUE),
+            XKOORLOK = mean(XKOORLOK, na.rm = TRUE),
+            YKOORLOK = mean(YKOORLOK, na.rm = TRUE),
+            WGS84_Dec_N = mean(WGS84_Dec_N, na.rm = TRUE),
+            WGS84_Dec_E = mean(WGS84_Dec_E, na.rm = TRUE),
+            mean_width = mean(Bredd, na.rm = TRUE),
+            mean_maxdepth = mean(Maxdjup, na.rm = TRUE),
+            mean_avgdepth = mean(Medeldju, na.rm = TRUE),
+            mean_watertemp = mean(Vattente, na.rm = TRUE),
+            mean_shade = mean(Beskuggn, na.rm = TRUE),
+            mean_Vandhind_bin = mean(Vandhind_bin, na.rm = TRUE),
+            mean_trout0 = mean(Trout0P, na.rm = TRUE)) %>%
+  arrange(Lokal)
 
 # select sites to plot (df.model.site contains one row per site, so here we select sites/rows 1:16 for plotting)
 site.start <- 1 # first site for plot
-#df.model.sub <- df.model.site[site.start:(site.start+15),] # plot 16 sites
-df.model.sub <- df1[site.start:(site.start+15),] # plot 16 sites
+df.model.sub <- df.model.site[site.start:(site.start+15),] # plot 16 sites
+# select sites 17:32
+site.start <- 17 # first site for plot
+df.model.sub <- df.model.site[site.start:(site.start+15),] # plot 16 sites
+# select sites 33:48
+site.start <- 33 # first site for plot
+df.model.sub <- df.model.site[site.start:(site.start+15),] # plot 16 sites
+# select sites 49:64
+site.start <- 49 # first site for plot
+df.model.sub <- df.model.site[site.start:(site.start+15),] # plot 16 sites
+# select sites 65:80
+site.start <- 65 # first site for plot
+df.model.sub <- df.model.site[site.start:(site.start+15),] # plot 16 sites
+# select sites 81:84
+site.start <- 81 # first site for plot
+df.model.sub <- df.model.site[site.start:(site.start+15),] # plot 16 sites
 
 # Pick clx and q90 values by for selected sites from results.clx
-pick <- as.data.frame(subset(results.clx, XY %in% df.model.sub$XY))
+pick <- as.data.frame(subset(results.clx, Lokal %in% df.model.sub$Lokal))
 
 # run plot function on df1 
 par(mfrow = c(4,4), mar = c(2,2,2,2))
@@ -725,5 +778,8 @@ for (i in seq_len(nrow(pick))) {
 }
 #par(mfrow = c(1,1))
 
+##### breakpoints vs covariates ####
+
+# merge results.clx with 
 
 
