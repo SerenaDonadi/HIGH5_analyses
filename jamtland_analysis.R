@@ -129,14 +129,14 @@ jamtland2 <- jamtland1 %>%
 
 # retain only variables of interest:
 jamtland3 <- jamtland2 %>% 
-  select(Öring0,Hflodomr, Vattendrag,site,XKOORLOK, YKOORLOK,WGS84_Dec_N,WGS84_Dec_E,
+  select(Öring0,Hflodomr, Vattendrag,site,Lokal,XKOORLOK, YKOORLOK,WGS84_Dec_N,WGS84_Dec_E,
          Fiskedatum,ÅR,MÅNAD,
          Bredd, Maxdjup,Medeldju,Substr1,Vattente,Beskuggn,Vandhind,VTYP_ED,Typavpop,Hoh,Avstupp,Avstner,
          mindistsj,LUTNING_PROM,MEDTEMPAR, MEDT_JULI,VIX,VIX_klass)
 
 head(jamtland3)
 
-# exploratory plots
+#### exploratory plots ####
 ggplot(subset(jamtland3, Vattendrag %in% c("Aloppan")),
        aes(x = ÅR , y = Öring0)) +
   geom_point()+
@@ -158,3 +158,378 @@ ggplot(subset(jamtland3, Vattendrag %in% c("Tvärån")),
   labs(title="")+
   theme_classic(base_size=13)
 
+### breakpoint analysis ####
+# using the script from 19 aug 2025 of Katarina Magnusson
+
+# calculating breakpoint values (hocky stick) 
+# model selection (quadratic vs linear model) based on criteria and AIC-values
+# for sites with no valid clx  -> site q90 fallback value
+# Optional: remove q90 for poor sites eg, site mean < mean of ICES subdivision (SD)
+
+# --------- dependencies ----------
+#library(dplyr)
+library(minpack.lm)
+library(nlstools)
+
+# --------- helpers ----------
+# Return an (x, y) data.frame of the empirical CDF (cumulative density function) for numeric vector x
+ecdf_df <- function(x) {
+  x <- x[is.finite(x)] # drop NA/NaN/Inf values
+  if (length(x) < 1) return(data.frame(x = numeric(0), y = numeric(0)))
+  xs <- sort(unique(x))
+  data.frame(x = xs, y = ecdf(x)(xs))
+}
+
+# Self-starting linear plateau (3 params)
+#   y = a + b*x           for x < clx
+#   y = a + b*clx         for x ≥ clx   (flat plateau at the cutoff clx)
+
+if (!exists("SSlinp", mode = "function")) {
+  SSlinp <- selfStart(
+    
+    # The model function used by nls(): piecewise linear with a hard plateau at clx
+    function(x, a, b, clx) ifelse(x < clx, a + b * x, a + b * clx),
+    
+    # The initializer that guesses starting values for (a, b, clx)
+    function(mCall, data, LHS) {
+      
+      # Build a clean (x, y) frame sorted by x from the model call and data
+      xy <- stats::sortedXyData(mCall[["x"]], LHS, data)
+      
+      # Crude linear fit across all x to seed intercept (a) and slope (b)
+      lm0 <- lm(y ~ x, xy)
+      a   <- coef(lm0)[1]; b <- coef(lm0)[2]
+      
+      # Start clx at the median x (robust, usually near the "knee")
+      clx <- stats::median(xy$x, na.rm = TRUE)
+      
+      # Return a named vector of initial values, with names aligned to the call
+      v <- c(a = a, b = b, clx = clx); names(v) <- mCall[c("a","b","clx")]
+      v
+    },
+    
+    # Declare parameter names so nls() knows what to estimate
+    parameters = c("a","b","clx")
+  )
+}
+
+# Self-starting quadratic-to-plateau (3 params), zero slope at clx
+# SSquadp3xs with parameter 'jp' for the breakpoint.
+# Select either 'clx' or 'jp' when extracting coefs/CI.
+if (!exists("SSquadp3xs", mode = "function")) {
+  SSquadp3xs <- selfStart(
+    function(x, a, b, clx) {
+      c <- -b / (2 * clx)
+      ifelse(x < clx, a + b * x + c * x^2, a + b * clx + c * clx^2)
+    },
+    function(mCall, data, LHS) {
+      xy <- stats::sortedXyData(mCall[["x"]], LHS, data)
+      lm2 <- try(lm(y ~ x + I(x^2), xy), silent = TRUE)
+      if (inherits(lm2, "try-error")) {
+        a0 <- mean(xy$y, na.rm = TRUE); b0 <- 0
+        clx0 <- stats::median(xy$x, na.rm = TRUE)
+      } else {
+        a_hat  <- coef(lm2)[1]; b1_hat <- coef(lm2)[2]; b2_hat <- coef(lm2)[3]
+        clx_v  <- if (is.finite(b2_hat) && abs(b2_hat) > .Machine$double.eps)
+          -b1_hat / (2 * b2_hat) else stats::median(xy$x, na.rm = TRUE)
+        clx0   <- min(max(clx_v, min(xy$x, na.rm = TRUE)), max(xy$x, na.rm = TRUE))
+        a0     <- a_hat; b0 <- b1_hat
+      }
+      v <- c(a = a0, b = b0, clx = clx0); names(v) <- mCall[c("a","b","clx")]
+      v
+    },
+    parameters = c("a","b","clx")
+  )
+}
+
+# Extract a breakpoint parameter by name (supports 'clx' or 'jp')
+.pick_par <- function(x, candidates = c("clx","jp")) {
+  nm <- names(x)
+  hit <- intersect(candidates, nm)
+  if (length(hit)) unname(x[hit[1]]) else NA_real_
+}
+
+# Extract CI rows by name (supports 'clx' or 'jp')
+.pick_ci <- function(ci, candidates = c("clx","jp")) {
+  rn <- rownames(ci)
+  hit <- intersect(candidates, rn)
+  if (length(hit)) ci[hit[1], , drop = FALSE] else matrix(NA_real_, nrow = 1, ncol = 2,
+                                                          dimnames = list("clx", c("2.5 %","97.5 %")))
+}
+
+# QC checker: evaluates three checks for a fitted cutoff (clx)
+# - plateau_ok: curve reaches required fraction of asymptote (y_at ≥ min_plateau)
+# - ci_ok: confidence interval on clx is reasonably tight and non-negative
+# - in_middle: clx lies within an inner quantile band of x (to avoid edge fits)
+
+qc_flags <- function(clx, ci_low, ci_high, y_at, x_vec,
+                     min_plateau, max_rel_ci, x_inner) {
+  
+  # If the cutoff isn't a finite number, fail fast with clear flags
+  if (!is.finite(clx)) {
+    return(list(ok = FALSE, plateau_ok = FALSE, ci_ok = FALSE, in_middle = FALSE, rel_ci = NA_real_))
+  }
+  
+  # Total spread (range length) of x; used to scale CI width
+  xr <- diff(range(x_vec, na.rm = TRUE))
+  
+  # Relative CI width for clx: (upper - lower) / x-range
+  # If CI bounds aren't both finite or x has no spread, set to NA
+  rel_ci <- if (is.finite(ci_low) && is.finite(ci_high) && xr > 0) (ci_high - ci_low) / xr else NA_real_
+  
+  # CI check:
+  # - If rel_ci is NA, treat as OK (don't fail due to missing CI)
+  # - Otherwise require: relative width ≤ threshold AND lower bound not negative (if provided)
+  ci_ok  <- if (is.na(rel_ci)) TRUE else (rel_ci <= max_rel_ci && (is.na(ci_low) || ci_low >= 0))
+  
+  # Inner quantile band of x (e.g., 5th–95th percentile)
+  xq <- stats::quantile(x_vec, probs = x_inner, na.rm = TRUE)
+  
+  # Check that clx lies inside that inner band
+  in_middle  <- clx >= xq[1] && clx <= xq[2]
+  
+  # Plateau check: y_at must be finite and at least min_plateau (e.g., 0.80)
+  plateau_ok <- is.finite(y_at) && (y_at >= min_plateau)
+  
+  # Aggregate verdict and individual flags
+  list(ok = (plateau_ok && ci_ok && in_middle),
+       plateau_ok = plateau_ok, ci_ok = ci_ok, in_middle = in_middle, rel_ci = rel_ci)
+}
+
+# --------- main ----------
+get_clx_all_methods_select_qc <- function(
+    df, # data.frame input data (one row per observation/visit)
+    
+    # character vector of columns that uniquely define a site/series grouping (e.g., pass ID and site) 
+    site_vars = c("Vattendrag", "site"), # I use XY as Lokal 
+    
+    # name of the response/metric column to model/select on (e.g., 0+ trout density per 100 m^2)
+    density_var = "Öring0",        
+    
+    # minimum number of rows in a group (e.g., years) required before attempting model fitting/selection
+    min_points  = 8, # not needed if only sites with at least 10 years of data are used               
+    
+    # minimum number of distinct x-values needed to fit reliably
+    min_unique  = 5,               
+    
+    # maximum iterations allowed for non-linear least squares optimizer (nls) before giving up 
+    maxiter_nls = 400,              
+    
+    # QC thresholds
+    # require the fitted curve to reach ≥ this fraction of its asymptote within observed range
+    min_plateau = 0.80,            
+    
+    # maximum acceptable relative CI width for key estimates (CI_width / estimate ≤ 0.25) 
+    max_rel_ci  = 0.25,            
+    
+    # inner quantile range of x kept for fitting/diagnostics to avoid edge effects/outliers
+    x_inner = c(0.05, 0.95),     
+    
+    # fallback options
+    fallback_q90_if = "high_mean",   # "never","always","high_mean"
+    fallback_when   = "both",        # "no_fit","fail_keep","both","never"
+    threshold_by    = NULL,          # e.g. "SD"
+    thr_fun         = "mean",         # "mean" or "quantile"
+    mean_threshold  = 0.75          # used if thr_fun == "quantile"
+) {
+  
+  stopifnot(density_var %in% names(df))
+  nls_ctrl <- nls.control(maxiter = maxiter_nls, warnOnly = TRUE)
+  
+  # ---------- per-site fits ----------
+  site_results <- df %>%
+    group_by(across(all_of(site_vars))) %>%
+    group_modify(~{
+      dens <- .x[[density_var]]
+      edf  <- ecdf_df(dens)
+      
+      q90_val <- quantile(dens, 0.9, na.rm = TRUE)
+      n_pts   <- length(dens) # number of data points
+      n_uniq  <- length(unique(edf$x)) # number of unique Trout0P values in edf
+      
+      # defaults
+      lin_clx <- lin_ci_low <- lin_ci_high <- lin_y_at <- NA_real_
+      quad_clx <- quad_ci_low <- quad_ci_high <- quad_y_at <- NA_real_
+      aic_lin <- aic_quad <- Inf
+      
+      if (n_pts >= min_points && n_uniq >= min_unique) {
+        
+        # Linear model
+        lin_fit <- try(nls(y ~ SSlinp(x, a, b, clx), data = edf, control = nls_ctrl), silent = TRUE)
+        if (inherits(lin_fit, "nls")) {
+          co <- coef(lin_fit)
+          lin_clx  <- .pick_par(co, c("clx","jp"))
+          lin_y_at <- as.numeric(predict(lin_fit, newdata = data.frame(x = lin_clx)))
+          ci_lin <- try(confint2(lin_fit), silent = TRUE)
+          if (!inherits(ci_lin, "try-error")) {
+            ci_row <- .pick_ci(ci_lin, c("clx","jp"))
+            lin_ci_low <- ci_row[1,1]; lin_ci_high <- ci_row[1,2]
+          }
+          aic_lin <- AIC(lin_fit)
+        }
+        
+        # Quadratic 3p model
+        quad_fit <- try(nls(y ~ SSquadp3xs(x, a, b, jp), data = edf, control = nls_ctrl), silent = TRUE)
+        if (!inherits(quad_fit, "nls")) {
+          quad_fit <- try(nls(y ~ SSquadp3xs(x, a, b, clx), data = edf, control = nls_ctrl), silent = TRUE)
+        }
+        if (inherits(quad_fit, "nls")) {
+          co <- coef(quad_fit)
+          quad_clx  <- .pick_par(co, c("jp","clx"))
+          quad_y_at <- as.numeric(predict(quad_fit, newdata = data.frame(x = quad_clx)))
+          ci_q <- try(confint2(quad_fit), silent = TRUE)
+          if (!inherits(ci_q, "try-error")) {
+            ci_row <- .pick_ci(ci_q, c("jp","clx"))
+            quad_ci_low <- ci_row[1,1]; quad_ci_high <- ci_row[1,2]
+          }
+          aic_quad <- AIC(quad_fit)
+        }
+      }
+      
+      # QC (quality control) for both candidates
+      lin_qc  <- qc_flags(lin_clx,  lin_ci_low,  lin_ci_high,  lin_y_at,  edf$x,
+                          min_plateau, max_rel_ci, x_inner)
+      quad_qc <- qc_flags(quad_clx, quad_ci_low, quad_ci_high, quad_y_at, edf$x,
+                          min_plateau, max_rel_ci, x_inner)
+      
+      # AIC selection with QC veto/switch (only use AIC if the model meet the critera)
+      method_pref <- "no_fit"; clx_pref <- ci_low <- ci_high <- y_at <- NA_real_; keep <- FALSE
+      if (is.finite(aic_lin) || is.finite(aic_quad)) {
+        if (aic_quad < aic_lin) {
+          if (quad_qc$ok) {
+            method_pref <- "quadratic_plateau"
+            clx_pref <- quad_clx; ci_low <- quad_ci_low; ci_high <- quad_ci_high; y_at <- quad_y_at
+            keep <- TRUE
+          } else if (lin_qc$ok) {
+            method_pref <- "linear_plateau"
+            clx_pref <- lin_clx; ci_low <- lin_ci_low; ci_high <- lin_ci_high; y_at <- lin_y_at
+            keep <- TRUE
+          } else {
+            method_pref <- "quadratic_plateau"
+            clx_pref <- quad_clx; ci_low <- quad_ci_low; ci_high <- quad_ci_high; y_at <- quad_y_at
+            keep <- FALSE
+          }
+        } else {
+          if (lin_qc$ok) {
+            method_pref <- "linear_plateau"
+            clx_pref <- lin_clx; ci_low <- lin_ci_low; ci_high <- lin_ci_high; y_at <- lin_y_at
+            keep <- TRUE
+          } else if (quad_qc$ok) {
+            method_pref <- "quadratic_plateau"
+            clx_pref <- quad_clx; ci_low <- quad_ci_low; ci_high <- quad_ci_high; y_at <- quad_y_at
+            keep <- TRUE
+          } else {
+            method_pref <- "linear_plateau"
+            clx_pref <- lin_clx; ci_low <- lin_ci_low; ci_high <- lin_ci_high; y_at <- lin_y_at
+            keep <- FALSE
+          }
+        }
+      }
+      
+      tibble(
+        q90 = q90_val,
+        n_points = n_pts, n_unique = n_uniq,
+        # per-model estimates and QC
+        lin_clx = lin_clx, lin_ci_low = lin_ci_low, lin_ci_high = lin_ci_high,
+        lin_y_at = lin_y_at, aic_linear = aic_lin,
+        quad_clx = quad_clx, quad_ci_low = quad_ci_low, quad_ci_high = quad_ci_high,
+        quad_y_at = quad_y_at, aic_quadratic = aic_quad,
+        lin_plateau_ok = lin_qc$plateau_ok, lin_ci_ok = lin_qc$ci_ok, lin_in_middle = lin_qc$in_middle,
+        quad_plateau_ok = quad_qc$plateau_ok, quad_ci_ok = quad_qc$ci_ok, quad_in_middle = quad_qc$in_middle,
+        # chosen
+        clx_pref = clx_pref, ci_low = ci_low, ci_high = ci_high, y_at_clx = y_at,
+        method_pref = method_pref, keep = keep
+      )
+    }) %>%
+    ungroup()
+  
+  # ---------- carry threshold_by into site_results & compute site means ----------
+  if (!is.null(threshold_by) && threshold_by %in% names(df)) {
+    key_map <- df %>%
+      distinct(across(all_of(c(site_vars, threshold_by))))
+    site_results <- site_results %>%
+      left_join(key_map, by = site_vars)
+  }
+  
+  site_means <- df %>%
+    group_by(across(all_of(site_vars))) %>%
+    summarise(mean_density = mean(get(density_var), na.rm = TRUE), .groups = "drop")
+  
+  site_results <- site_results %>%
+    left_join(site_means, by = site_vars)
+  
+  # ---------- thresholds (per group or global, from site-level means) ----------
+  if (!is.null(threshold_by) && threshold_by %in% names(site_results)) {
+    thr_tbl <- site_results %>%
+      group_by(.data[[threshold_by]]) %>%
+      summarise(
+        thr_val = if (thr_fun == "mean") {
+          mean(mean_density, na.rm = TRUE)
+        } else if (thr_fun == "quantile") {
+          stats::quantile(mean_density, probs = mean_threshold, na.rm = TRUE, names = FALSE)
+        } else {
+          stop("thr_fun must be 'mean' or 'quantile'")
+        },
+        .groups = "drop"
+      )
+    site_results <- site_results %>%
+      left_join(thr_tbl, by = threshold_by)
+  } else {
+    thr_val_global <- if (thr_fun == "mean") {
+      mean(site_results$mean_density, na.rm = TRUE)
+    } else {
+      stats::quantile(site_results$mean_density, probs = mean_threshold, na.rm = TRUE, names = FALSE)
+    }
+    site_results$thr_val <- thr_val_global
+  }
+  
+  # ---------- fallback (q90) ----------
+  need_fallback <- function(keep, method_pref, when) {
+    (when == "no_fit"    && method_pref == "no_fit") ||
+      (when == "fail_keep" && !isTRUE(keep)) ||
+      (when == "both"      && (method_pref == "no_fit" || !isTRUE(keep)))
+  }
+  
+  out <- site_results %>%
+    mutate(
+      need_fb = mapply(need_fallback, keep, method_pref, MoreArgs = list(when = fallback_when)),
+      allow_fb = case_when(
+        fallback_q90_if == "always" ~ TRUE,
+        fallback_q90_if == "high_mean" ~ is.finite(mean_density) & is.finite(thr_val) & (mean_density >= thr_val),
+        TRUE ~ FALSE
+      ),
+      use_fallback = need_fb & allow_fb,
+      clx_final    = ifelse(use_fallback, q90, clx_pref),
+      method_final = ifelse(use_fallback, paste0("q90_fallback_", fallback_q90_if), method_pref),
+      fallback_used = use_fallback,
+      keep_final   = keep | use_fallback,
+      usable       = keep_final
+    )
+  
+  return(out)
+}
+
+
+
+### RUN MODEL ON DATA
+
+is.data.frame(jamtland3)
+
+#nlsdata <- sers %>% 
+#  filter(Year>1989) %>% 
+#  filter(Month>6 & Month<11) %>% 
+#  filter(!is.na(Trout0P)) %>%
+#  group_by(XY) %>% 
+#  filter(n() > 9)
+
+#df1 <- as.data.frame(nlsdata[,c("XY","SD","VDRAGNAM","LOKALNAM","Trout0P")])
+#colnames(df1) <- c("Lokal","SD","Vdrag","Lokalnam","Trout0P")
+
+results.clx <- get_clx_all_methods_select_qc(jamtland3,  
+                                             # Fallback options:
+                                             fallback_when   = "both",  # when fallback should be used if no clx-value: "no_fit","fail_keep","both","never"
+                                             fallback_q90_if = "always", # can also specify if poor sites should be excluded: "never","always","high_mean"
+                                             threshold_by="SD",  # area for threshold values (example ICES subdivion "SD")
+                                             thr_fun = "mean", # threshold value for area "mean" or "quantile"
+                                             mean_threshold = 0.75,  # specifying quantile if thr_fun="quantile"
+)
