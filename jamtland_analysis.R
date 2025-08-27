@@ -15,6 +15,7 @@ load("my_environment.RData")
 
 #library(tidyverse)
 library(ggplot2)
+library(plyr)
 library(dplyr)
 #library(tidyr)
 library(gplots)
@@ -29,7 +30,6 @@ library(mgcv)
 library(ggeffects)
 
 library(ExcelFunctionsR)
-#library(plyr)
 
 
 #####
@@ -517,9 +517,9 @@ is.data.frame(jamtland3)
 
 # calculate the mean trout0 per catchment as reference value, instead of using the ICES subdivision
 # maybe not needed. Indeed
-jamtland4<-jamtland3 %>%
-  group_by(Hflodomr) %>%
-  mutate(Hflodomr_avg_Oring0 = mean(Öring0))
+#jamtland4<-jamtland3 %>%
+#  group_by(Hflodomr) %>%
+#  mutate(Hflodomr_avg_Oring0 = mean(Öring0))
 
 ### 1) using avg density of trout per catchment as threshold value for the area
 df1 <- as.data.frame(jamtland3[,c("site","Hflodomr","Vattendrag","Lokal","Öring0")])
@@ -597,6 +597,7 @@ jamtland3$SD[(jamtland3$HFLODOMR2 > 112 & jamtland3$HFLODOMR2 <= 116) | jamtland
 
 # unload plyr:
 detach("package:plyr", unload=TRUE)
+detach("package:ExcelFunctionsR", unload=TRUE)
 
 
 #####
@@ -615,3 +616,7 @@ results.clx2 <- get_clx_all_methods_select_qc(df2,
                                              thr_fun = "mean", # threshold value for area "mean" or "quantile"
                                              mean_threshold = 0.75,  # specifying quantile if thr_fun="quantile"
 )
+
+# plot to check differences between the two methods
+plot(results.clx$clx_final,results.clx2$clx_final) #breakpoint are the same
+# 
