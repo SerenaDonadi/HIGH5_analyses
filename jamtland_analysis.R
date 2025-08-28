@@ -58,6 +58,29 @@ jamtland %>%
 # check Beskuggn
 table(jamtland$Beskuggn)
 
+# check Vandhind
+unique(jamtland2$Vandhind)
+table(jamtland2$Vandhind)
+# substitute " " values with NA: I did it below
+# transform Vandhind in a numeric variable? no need if values per site did not change over the years. Check, after removing NA:
+jamtland2 %>%
+  filter(!is.na(Vandhind)) %>%
+  group_by(site) %>%
+  summarise(n_unique_vandhind = n_distinct(Vandhind)) %>%
+  filter(n_unique_vandhind > 1)
+# I'd like to see which combinations of Vandhind values appear together in the same site:
+jamtland2 %>%
+  filter(!is.na(Vandhind)) %>%
+  group_by(site) %>%
+  summarise(vandhind_values = paste(sort(unique(Vandhind)), collapse = ", ")) %>%
+  distinct(vandhind_values) %>%
+  arrange(vandhind_values)
+# there are 4 combinations: "Inga" alone, and "Ned, Inga", "Ned, Inga, Upp" and "Upp, Inga". 
+# make a variable Vandhind_history, with 0 for "Inga" and  "Upp, Inga", and 1 for "Ned, Inga" and "Ned, Inga, Upp"
+# or maybe better: make a variable with 0 for "Inga" and "Upp", and 1 for "Ned", so that when I average values by site
+# I will get 0 for sites that never had obstacles downstream, 1 for those that always had, and values in between for
+# those whose status changed over the years
+
 # select which months
 hist(jamtland$MÅNAD)
 
@@ -134,22 +157,20 @@ jamtland2 <- jamtland1 %>%
 jamtland2$Beskuggn[jamtland2$Beskuggn == -9] <- NA
 unique(jamtland2$Beskuggn)
 
-# transform Vandhind in a numeric variable: START FROM HERE and then go to last scripts
-table(jamtland2$Vandhind)
-jamtland2$Vandhind_bin<-jamtland2$Vandhind[jamtland2$Vandhind == "Inga"] <- 0
-jamtland2$Vandhind[jamtland2$Vandhind == "Ned"] <- 1
-jamtland2$Vandhind[jamtland2$Vandhind == "Upp"] <- 1
-
-jamtland3$SD<-NA
-# SD 31
-jamtland3$SD[jamtland3$HFLODOMR2 <= 30]<-"SD31"
-
+# substitute " " values in Vandhind with NA: 
+jamtland2$Vandhind[jamtland2$Vandhind == " "] <- NA
+# make a variable with 0 for "Inga" and "Upp", and 1 for "Ned"
+jamtland2$Vandhind_bin<-NA
+jamtland2$Vandhind_bin[jamtland2$Vandhind == "Inga"]<-0
+jamtland2$Vandhind_bin[jamtland2$Vandhind == "Ned"]<-1
+jamtland2$Vandhind_bin[jamtland2$Vandhind == "Upp"]<-0
+table(jamtland2$Vandhind, jamtland2$Vandhind_bin)
 
 # retain only variables of interest:
 jamtland3 <- jamtland2 %>% 
   select(Öring0,Hflodomr, Vattendrag,site,Lokal,XKOORLOK, YKOORLOK,WGS84_Dec_N,WGS84_Dec_E,
          Fiskedatum,ÅR,MÅNAD,
-         Bredd, Maxdjup,Medeldju,Substr1,Vattente,Beskuggn,Vandhind,VTYP_ED,Typavpop,Hoh,Avstupp,Avstner,
+         Bredd, Maxdjup,Medeldju,Substr1,Vattente,Beskuggn,Vandhind,Vandhind_bin,VTYP_ED,Typavpop,Hoh,Avstupp,Avstner,
          mindistsj,LUTNING_PROM,MEDTEMPAR, MEDT_JULI,VIX,VIX_klass)
 
 head(jamtland3)
