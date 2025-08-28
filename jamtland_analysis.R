@@ -1,5 +1,10 @@
 rm(list=ls())
 
+# prioritize your user library but still keep access to system packages
+.libPaths(c("C:/NoBackup/sedi/R/x86_64-w64-mingw32-library/4.5",
+            "C:/Program Files/R/R-4.5.1/library"))
+          
+
 dir.exists("C:/R projects Serena/HIGH5/HIGH5_data")
 setwd("C:/R projects Serena/HIGH5/HIGH5_data")
 
@@ -15,7 +20,7 @@ load("my_environment.RData")
 
 #library(tidyverse)
 library(ggplot2)
-library(plyr)
+#library(plyr)
 library(dplyr)
 #library(tidyr)
 library(gplots)
@@ -30,7 +35,6 @@ library(mgcv)
 library(ggeffects)
 
 library(ExcelFunctionsR)
-
 
 #####
 # Read Datasets
@@ -77,9 +81,52 @@ jamtland2 %>%
   arrange(vandhind_values)
 # there are 4 combinations: "Inga" alone, and "Ned, Inga", "Ned, Inga, Upp" and "Upp, Inga". 
 # make a variable Vandhind_history, with 0 for "Inga" and  "Upp, Inga", and 1 for "Ned, Inga" and "Ned, Inga, Upp"
-# or maybe better: make a variable with 0 for "Inga" and "Upp", and 1 for "Ned", so that when I average values by site
+# or maybe better: make a variable with 0 for "Inga" and "Upp", and 1 for "Ned", 
+# revise:0 for "Inga" and 1 for "Ned" and "Upp", because almost all migrating populations here are migrating to lake (only one to sea)
+# so that when I average values by site
 # I will get 0 for sites that never had obstacles downstream, 1 for those that always had, and values in between for
 # those whose status changed over the years
+
+# check VTYP_ED and Typavpop
+table(jamtland2$VTYP_ED)
+unique(jamtland2$VTYP_ED)
+table(jamtland2$Typavpop)
+unique(jamtland2$Typavpop)
+# did it change over the years for the same site? yes
+jamtland2 %>%
+  filter(!is.na(VTYP_ED)) %>%
+  group_by(site) %>%
+  summarise(n_unique_VTYP_ED = n_distinct(VTYP_ED)) %>%
+  filter(n_unique_VTYP_ED > 1)
+# I'd like to see which combinations of VTYP_ED values appear together in the same site:
+jamtland2 %>%
+  filter(!is.na(VTYP_ED)) %>%
+  group_by(site) %>%
+  summarise(VTYP_EDvalues = paste(sort(unique(VTYP_ED)), collapse = ", ")) %>%
+  distinct(VTYP_EDvalues) %>%
+  arrange(VTYP_EDvalues)
+# Hav, Ström   
+# Insjö        
+# Insjö, Ström 
+# Ström 
+# make a binary numeric value with 0 för ström and 1 for either Hav or Insjö
+# check if Typavpop is consisten with VTYP_ED:
+jamtland2 %>%
+  filter(!is.na(Typavpop)) %>%
+  group_by(site) %>%
+  summarise(n_unique_Typavpop = n_distinct(Typavpop)) %>%
+  filter(n_unique_Typavpop > 1)
+# I'd like to see which combinations of Typavpop values appear together in the same site:
+jamtland2 %>%
+  filter(!is.na(Typavpop)) %>%
+  group_by(site) %>%
+  summarise(Typavpopvalues = paste(sort(unique(Typavpop)), collapse = ", ")) %>%
+  distinct(Typavpopvalues) %>%
+  arrange(Typavpopvalues)
+# Ström         
+# Ström, Vandr  
+# Vandr 
+# to be on the safe site I could make two binary numeric variables, one for each of this variables and see if they differ
 
 # select which months
 hist(jamtland$MÅNAD)
@@ -99,9 +146,6 @@ unique(jamtland2$Vandhind)
 unique(jamtland2$Typavpop)
 unique(jamtland2$Lokalvar)
 unique(jamtland2$Lokalvar)
-
-table(jamtland2$VTYP_ED)
-table(jamtland2$Typavpop)
 
 # OBS1: there are site with no name! 4
 filter(jamtland2, Lokal == " ")
@@ -163,17 +207,71 @@ jamtland2$Vandhind[jamtland2$Vandhind == " "] <- NA
 jamtland2$Vandhind_bin<-NA
 jamtland2$Vandhind_bin[jamtland2$Vandhind == "Inga"]<-0
 jamtland2$Vandhind_bin[jamtland2$Vandhind == "Ned"]<-1
-jamtland2$Vandhind_bin[jamtland2$Vandhind == "Upp"]<-0
+jamtland2$Vandhind_bin[jamtland2$Vandhind == "Upp"]<-1
 table(jamtland2$Vandhind, jamtland2$Vandhind_bin)
+
+# substitute " " values in VTYP_ED and Typavpop with NA: 
+jamtland2$VTYP_ED[jamtland2$VTYP_ED == " "] <- NA
+jamtland2$Typavpop[jamtland2$Typavpop == " "] <- NA
+
+# make a binary numeric variable with 0 för ström and 1 for either Hav or Insjö:
+jamtland2$VTYP_ED_bin<-NA
+jamtland2$VTYP_ED_bin[jamtland2$VTYP_ED == "Ström"]<-0
+jamtland2$VTYP_ED_bin[jamtland2$VTYP_ED == "Insjö"]<-1
+jamtland2$VTYP_ED_bin[jamtland2$VTYP_ED == "Hav"]<-1
+table(jamtland2$VTYP_ED, jamtland2$VTYP_ED_bin)
+
+# same for variable Typavpop, as they may not be consistent (migratory pop are 500 vs 470, and resident pop 930 vs 928, but the
+# discrepancy may be due to more missing values in Typavpop than in VTYP_ED)
+jamtland2$Typavpop_bin<-NA
+jamtland2$Typavpop_bin[jamtland2$Typavpop == "Ström"]<-0
+jamtland2$Typavpop_bin[jamtland2$Typavpop == "Vandr"]<-1
+table(jamtland2$Typavpop, jamtland2$Typavpop_bin)
 
 # retain only variables of interest:
 jamtland3 <- jamtland2 %>% 
   select(Öring0,Hflodomr, Vattendrag,site,Lokal,XKOORLOK, YKOORLOK,WGS84_Dec_N,WGS84_Dec_E,
          Fiskedatum,ÅR,MÅNAD,
-         Bredd, Maxdjup,Medeldju,Substr1,Vattente,Beskuggn,Vandhind,Vandhind_bin,VTYP_ED,Typavpop,Hoh,Avstupp,Avstner,
+         Bredd, Maxdjup,Medeldju,Substr1,Vattente,Beskuggn,Vandhind,Vandhind_bin,VTYP_ED,VTYP_ED_bin,Typavpop,Typavpop_bin,Hoh,Avstupp,Avstner,
          mindistsj,LUTNING_PROM,MEDTEMPAR, MEDT_JULI,VIX,VIX_klass)
 
 head(jamtland3)
+
+#### group variables by site: ####
+# make a dataset with only the sites (one row per site), and bring along covaraites for later analyses
+
+df.model.site <- jamtland3 %>%
+  group_by(site,Vattendrag,Hflodomr) %>%
+  summarise(n_years = n(), 
+            mean_trout0 = mean(Öring0, na.rm = TRUE),
+            XKOORLOK = mean(XKOORLOK, na.rm = TRUE),
+            YKOORLOK = mean(YKOORLOK, na.rm = TRUE),
+            WGS84_Dec_N = mean(WGS84_Dec_N, na.rm = TRUE),
+            WGS84_Dec_E = mean(WGS84_Dec_E, na.rm = TRUE),
+            mean_width = mean(Bredd, na.rm = TRUE),
+            mean_maxdepth = mean(Maxdjup, na.rm = TRUE),
+            mean_avgdepth = mean(Medeldju, na.rm = TRUE),
+            mean_watertemp = mean(Vattente, na.rm = TRUE),
+            mean_shade = mean(Beskuggn, na.rm = TRUE),
+            mean_Vandhind_bin = mean(Vandhind_bin, na.rm = TRUE),
+            mean_VTYP_ED_bin = mean(VTYP_ED_bin, na.rm = TRUE),
+            mean_Typavpop_bin = mean(Typavpop_bin, na.rm = TRUE),
+            mean_Hoh = mean(Hoh, na.rm = TRUE),
+            mean_Avstupp = mean(Avstupp, na.rm = TRUE),
+            mean_Avstner = mean(Avstner, na.rm = TRUE),
+            mean_mindistsj = mean(mindistsj, na.rm = TRUE),
+            mean_LUTNING_PROM = mean(LUTNING_PROM, na.rm = TRUE),
+            mean_MEDTEMPAR = mean(MEDTEMPAR, na.rm = TRUE),
+            mean_MEDT_JULI = mean(MEDT_JULI, na.rm = TRUE),
+            mean_VIX = mean(VIX, na.rm = TRUE),
+            mean_VIX_klass= mean(VIX_klass, na.rm = TRUE)) %>%
+  arrange(site)
+
+# change name for mmerging later:
+colnames(df.model.site)[which(names(df.model.site) == "mean_trout0")] <- "Trout0P"
+colnames(df.model.site)[which(names(df.model.site) == "site")] <- "Lokal"
+colnames(df.model.site)[which(names(df.model.site) == "Vattendrag")] <- "Vdrag"
+
 
 #### exploratory plots ####
 ggplot(subset(jamtland3, Vattendrag %in% c("Aloppan")),
@@ -625,8 +723,8 @@ is.data.frame(jamtland3)
 
 
 ### 1) using avg density of trout per catchment as threshold value for the area
-df1 <- as.data.frame(jamtland3[,c("site","Hflodomr","Vattendrag","Lokal","Öring0")])
-colnames(df1) <- c("Lokal","Hflodomr","Vdrag","Lokalnam","Trout0P")
+df1 <- as.data.frame(jamtland3[,c("site","Hflodomr","Vattendrag","Öring0")])
+colnames(df1) <- c("Lokal","Hflodomr","Vdrag","Trout0P")
 
 results.clx <- get_clx_all_methods_select_qc(df1,  
                                              # Fallback options:
@@ -641,8 +739,8 @@ results.clx <- get_clx_all_methods_select_qc(df1,
 # 2) ### using avg density of trout per SD as threshold value for the area
 # OBS for Jamtland, all rivers are in SD30
 
-df2 <- as.data.frame(jamtland3[,c("site","SD","Vattendrag","Lokal","Öring0")])
-colnames(df2) <- c("Lokal","SD","Vdrag","Lokalnam","Trout0P")
+df2 <- as.data.frame(jamtland3[,c("site","SD","Vattendrag","Öring0")])
+colnames(df2) <- c("Lokal","SD","Vdrag","Trout0P")
 
 results.clx2 <- get_clx_all_methods_select_qc(df2,  
                                              # Fallback options:
@@ -656,7 +754,9 @@ results.clx2 <- get_clx_all_methods_select_qc(df2,
 # plot to check differences between the two methods: breakpoints, keep final and usable are the same
 plot(results.clx$clx_final,results.clx2$clx_final) #
 
+
 #### plots breakpoints ####
+
 # script from Katarina Magnusson 27 aug 2025
 
 # PLOT function
@@ -741,33 +841,6 @@ plot_clx_site <- function(raw_df, site_row,
 
 ### choose a SUBSAMPLE to plot 
 
-# make a dataset with only the sites (one row per site), and bring along covaraites for later analyses
-jamtland3 <- jamtland2 %>% 
-  select(Öring0,Hflodomr, Vattendrag,site,Lokal,XKOORLOK, YKOORLOK,WGS84_Dec_N,WGS84_Dec_E,
-         Fiskedatum,ÅR,MÅNAD,
-         Bredd, Maxdjup,Medeldju,Substr1,Vattente,Beskuggn,Vandhind,VTYP_ED,Typavpop,Hoh,Avstupp,Avstner,
-         mindistsj,LUTNING_PROM,MEDTEMPAR, MEDT_JULI,VIX,VIX_klass)
-
-head(jamtland3)
-
-
-df.model.site <- df1 %>%
-  group_by(Lokal,Vdrag,Hflodomr,Lokalnam) %>%
-  summarise(n_years = n(), 
-            mean_trout0 = mean(Trout0P, na.rm = TRUE),
-            XKOORLOK = mean(XKOORLOK, na.rm = TRUE),
-            YKOORLOK = mean(YKOORLOK, na.rm = TRUE),
-            WGS84_Dec_N = mean(WGS84_Dec_N, na.rm = TRUE),
-            WGS84_Dec_E = mean(WGS84_Dec_E, na.rm = TRUE),
-            mean_width = mean(Bredd, na.rm = TRUE),
-            mean_maxdepth = mean(Maxdjup, na.rm = TRUE),
-            mean_avgdepth = mean(Medeldju, na.rm = TRUE),
-            mean_watertemp = mean(Vattente, na.rm = TRUE),
-            mean_shade = mean(Beskuggn, na.rm = TRUE),
-            mean_Vandhind_bin = mean(Vandhind_bin, na.rm = TRUE),
-            mean_trout0 = mean(Trout0P, na.rm = TRUE)) %>%
-  arrange(Lokal)
-
 # select sites to plot (df.model.site contains one row per site, so here we select sites/rows 1:16 for plotting)
 site.start <- 1 # first site for plot
 df.model.sub <- df.model.site[site.start:(site.start+15),] # plot 16 sites
@@ -801,6 +874,8 @@ for (i in seq_len(nrow(pick))) {
 
 ##### breakpoints vs covariates ####
 
-# merge results.clx with 
+# merge results.clx with df.model.site
+all_sites<-merge(df.model.site, results.clx, by = c("Lokal","Vdrag"), all = T, sort = F) # 
+summary(all_sites)
 
 
