@@ -885,14 +885,14 @@ ggplot(all_sites, aes(x=Lokal, y=clx_final, col = Vdrag, fill=Vdrag)) +
   theme_bw(base_size=15)+
   theme(legend.position="bottom")
 
-ggplot(all_sites, aes(x = mean_width , y = clx_final, col=mean_VTYP_ED_bin)) +
+ggplot(all_sites, aes(x = mean_mindistsj , y = clx_final, col=mean_VTYP_ED_bin)) +
   geom_point()+
   theme_bw(base_size=15)
 
-ggplot(all_sites, aes(x = mean_Vandhind_bin , y = clx_final, col=mean_VTYP_ED_bin)) +
+ggplot(all_sites, aes(x = mean_mindistsj , y = clx_final, col=mean_VTYP_ED_bin, size=mean_Vandhind_bin)) +
   geom_point()+
   theme_bw(base_size=15)
   
-ggplot(all_sites, aes(x = mean_watertemp , y = clx_final)) +
+ggplot(all_sites, aes(x = mean_VIX_klass , y = clx_final)) +
   geom_point()+
   theme_bw(base_size=15)
