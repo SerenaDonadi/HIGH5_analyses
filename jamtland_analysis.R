@@ -182,7 +182,7 @@ jamtland2a %>%
 #  filter(site %in% unique(site_years10$site) & Vattendrag %in% unique(site_years10$Vattendrag))
 #unique(jamtland3_time_series$site) # 84 sites
 
-##### subsets ####
+##### fix variables and subsets ####
 
 # Because of missing names in lokal as well as same name in different rivers, 
 # make a column with the coordinates as a character string, and use it as site name:
@@ -875,7 +875,24 @@ for (i in seq_len(nrow(pick))) {
 ##### breakpoints vs covariates ####
 
 # merge results.clx with df.model.site
-all_sites<-merge(df.model.site, results.clx, by = c("Lokal","Vdrag"), all = T, sort = F) # 
+all_sites<-merge(df.model.site, results.clx, by = c("Lokal","Vdrag", "Hflodomr"), all = T, sort = F) # 
 summary(all_sites)
 
+# exploratory plots
+ggplot(all_sites, aes(x=Lokal, y=clx_final, col = Vdrag, fill=Vdrag)) +
+  geom_bar(stat="identity")+
+  #facet_wrap(~Vdrag)+
+  theme_bw(base_size=15)+
+  theme(legend.position="bottom")
 
+ggplot(all_sites, aes(x = mean_width , y = clx_final, col=mean_VTYP_ED_bin)) +
+  geom_point()+
+  theme_bw(base_size=15)
+
+ggplot(all_sites, aes(x = mean_Vandhind_bin , y = clx_final, col=mean_VTYP_ED_bin)) +
+  geom_point()+
+  theme_bw(base_size=15)
+  
+ggplot(all_sites, aes(x = mean_watertemp , y = clx_final)) +
+  geom_point()+
+  theme_bw(base_size=15)
