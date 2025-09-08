@@ -166,12 +166,12 @@ jamtland2a %>%
 
 # explore hierarchical spatial and temporal structure.
 # how many years per site? first and last year of sampling?
-#site_years<-jamtland3 %>% 
-#  group_by(Hflodomr,Vattendrag,site) %>% 
-#  summarise(n_dinstic_years = n_distinct(ÅR),
-#            first_year = min(ÅR),
-#            last_year = max(ÅR)) %>% 
-#  arrange(desc(n_dinstic_years))
+site_years<-jamtland3 %>% 
+  group_by(Hflodomr,Vattendrag,site) %>% 
+  summarise(n_dinstic_years = n_distinct(ÅR),
+            first_year = min(ÅR),
+            last_year = max(ÅR)) %>% 
+  arrange(desc(n_dinstic_years))
 
 # select only sites with at least 10 years of sampling 
 #site_years10<-site_years %>%
