@@ -183,8 +183,7 @@ vandhind_scores <- jamtland2 %>%
   summarise(Vandhind_score = classify_vandhind(Vandhind)) %>%
   ungroup()
 
-# Merge later to  data by site! TO DO
-#df_with_scores <- left_join(df, vandhind_scores, by = "site")
+# Merge later to  data by site! 
 
 # check VTYP_ED and Typavpop
 table(jamtland2$VTYP_ED)
@@ -252,8 +251,7 @@ VTYP_ED_scores <- jamtland2 %>%
   group_by(site) %>%
   summarise(VTYP_ED_score = classify_VTYP_ED(VTYP_ED)) %>%
   ungroup()
-
-# Merge later to  data by site! TO DO
+# Merge later to  data by site!
 
 # retain only variables of interest:
 jamtland3 <- jamtland2 %>% 
@@ -794,7 +792,6 @@ plot(results.clx$clx_final,results.clx2$clx_final) #
 
 
 #### plots breakpoints ####
-
 # script from Katarina Magnusson 27 aug 2025
 
 # PLOT function
@@ -879,24 +876,24 @@ plot_clx_site <- function(raw_df, site_row,
 
 ### choose a SUBSAMPLE to plot 
 
-# select sites to plot (df.model.site contains one row per site, so here we select sites/rows 1:16 for plotting)
+# select sites to plot (df.model.site2 contains one row per site, so here we select sites/rows 1:16 for plotting)
 site.start <- 1 # first site for plot
-df.model.sub <- df.model.site[site.start:(site.start+15),] # plot 16 sites
+df.model.sub <- df.model.site2[site.start:(site.start+15),] # plot 16 sites
 # select sites 17:32
 site.start <- 17 # first site for plot
-df.model.sub <- df.model.site[site.start:(site.start+15),] # plot 16 sites
+df.model.sub <- df.model.site2[site.start:(site.start+15),] # plot 16 sites
 # select sites 33:48
 site.start <- 33 # first site for plot
-df.model.sub <- df.model.site[site.start:(site.start+15),] # plot 16 sites
+df.model.sub <- df.model.site2[site.start:(site.start+15),] # plot 16 sites
 # select sites 49:64
 site.start <- 49 # first site for plot
-df.model.sub <- df.model.site[site.start:(site.start+15),] # plot 16 sites
+df.model.sub <- df.model.site2[site.start:(site.start+15),] # plot 16 sites
 # select sites 65:80
 site.start <- 65 # first site for plot
-df.model.sub <- df.model.site[site.start:(site.start+15),] # plot 16 sites
+df.model.sub <- df.model.site2[site.start:(site.start+15),] # plot 16 sites
 # select sites 81:84
 site.start <- 81 # first site for plot
-df.model.sub <- df.model.site[site.start:(site.start+15),] # plot 16 sites
+df.model.sub <- df.model.site2[site.start:(site.start+15),] # plot remaining sites
 
 # Pick clx and q90 values by for selected sites from results.clx
 pick <- as.data.frame(subset(results.clx, Lokal %in% df.model.sub$Lokal))
@@ -912,9 +909,12 @@ for (i in seq_len(nrow(pick))) {
 
 ##### breakpoints vs covariates ####
 
-# merge results.clx with df.model.site
-all_sites<-merge(df.model.site, results.clx, by = c("Lokal","Vdrag", "Hflodomr"), all = T, sort = F) # 
+# merge results.clx with df.model.site2
+all_sites<-merge(df.model.site2, results.clx, by = c("Lokal","Vdrag", "Hflodomr"), all = T, sort = F) # 
 summary(all_sites)
+
+# set VTYP_ED_score as a factor:
+all_sites$VTYP_ED_score_f<-as.factor(all_sites$VTYP_ED_score)
 
 # exploratory plots
 ggplot(all_sites, aes(x=Lokal, y=clx_final, col = Vdrag, fill=Vdrag)) +
@@ -923,14 +923,18 @@ ggplot(all_sites, aes(x=Lokal, y=clx_final, col = Vdrag, fill=Vdrag)) +
   theme_bw(base_size=15)+
   theme(legend.position="bottom")
 
-ggplot(all_sites, aes(x = mean_mindistsj , y = clx_final, col=mean_VTYP_ED_bin)) +
+ggplot(all_sites, aes(x = mean_width , y = clx_final, col=VTYP_ED_score_f)) +
   geom_point()+
   theme_bw(base_size=15)
 
-ggplot(all_sites, aes(x = mean_mindistsj , y = clx_final, col=mean_VTYP_ED_bin, size=mean_Vandhind_bin)) +
+ggplot(all_sites, aes(x = mean_mindistsj , y = clx_final, col=VTYP_ED_score_f, size=Vandhind_score)) +
   geom_point()+
   theme_bw(base_size=15)
   
-ggplot(all_sites, aes(x = mean_VIX_klass , y = clx_final)) +
+ggplot(all_sites, aes(x = mean_VIX, y = clx_final)) +
   geom_point()+
   theme_bw(base_size=15)
+
+hist(all_sites$VTYP_ED_score)
+hist(all_sites$Vandhind_score)
+table(all_sites$VTYP_ED_score_f, all_sites$Vandhind_score)
