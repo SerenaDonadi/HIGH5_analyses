@@ -62,6 +62,10 @@ jamtland %>%
 # check Beskuggn
 table(jamtland$Beskuggn)
 
+library(openxlsx)
+write.xlsx(jamtland2, file="C:/RprojectsSerena/HIGH5/Output/jamtland2.xlsx",
+           sheetName = "", colNames = TRUE, rowNames = TRUE, append = F)
+
 # check Vandhind
 unique(jamtland2$Vandhind)
 table(jamtland2$Vandhind)
@@ -80,12 +84,56 @@ jamtland2 %>%
   distinct(vandhind_values) %>%
   arrange(vandhind_values)
 # there are 4 combinations: "Inga" alone, and "Ned, Inga", "Ned, Inga, Upp" and "Upp, Inga". 
-# make a variable Vandhind_history, with 0 for "Inga" and  "Upp, Inga", and 1 for "Ned, Inga" and "Ned, Inga, Upp"
-# or maybe better: make a variable with 0 for "Inga" and "Upp", and 1 for "Ned", 
-# revise:0 for "Inga" and 1 for "Ned" and "Upp", because almost all migrating populations here are migrating to lake (only one to sea)
-# so that when I average values by site
-# I will get 0 for sites that never had obstacles downstream, 1 for those that always had, and values in between for
-# those whose status changed over the years
+# create a new variable with 0 for sites where Vand hind was always Inga, 1 if Ned and Inga were found over the years, 1.5 if
+# both Ned and Upp were found, and 0.5 if only Upp was recorded:
+
+######CHECK THIS BIT!
+# Load necessary library
+library(dplyr)
+library(readxl)
+
+# Define a function to classify Vandhind combinations
+classify_vandhind <- function(values) {
+  values <- unique(na.omit(trimws(values)))
+  
+  if (identical(values, "Inga")) {
+    return(0)
+  } else if (setequal(values, c("Ned", "Inga"))) {
+    return(1)
+  } else if ("Ned" %in% values && "Upp" %in% values) {
+    return(1.5)
+  } else if (identical(values, "Upp")) {
+    return(0.5)
+  } else {
+    return(NA)
+  }
+}
+
+# Apply the classification per site
+vandhind_scores <- jamtland2 %>%
+  group_by(site) %>%
+  summarise(Vandhind_score = classify_vandhind(Vandhind)) %>%
+  ungroup()
+
+# Merge back to original data
+df_with_scores <- left_join(df, vandhind_scores, by = "site")
+
+# View result
+head(df_with_scores)
+
+
+### if all this work, transfer this last part to the next section
+
+# count values of "Vandhind" by site:
+vandhind_freq<-jamtland2 %>%
+  filter(!is.na(Vandhind)) %>%
+  group_by(site, Vandhind) %>%
+  summarise(count = n()) %>%
+  arrange(site, Vandhind)
+view(vandhind_freq)
+# make a table with the counts:
+vandhind_table <- tidyr::pivot_wider(vandhind_freq, names_from = Vandhind, values_from = count, values_fill = 0)
+
 
 # check VTYP_ED and Typavpop
 table(jamtland2$VTYP_ED)

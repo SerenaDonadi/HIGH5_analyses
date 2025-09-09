@@ -100,6 +100,14 @@ says thatit's unlikely that obstacles have been removed. Find a way to dealwith 
 ned, and take the highest (?)
 
 Answer: in each site, over years, there are 4 combinations: "Inga" alone, and "Ned, Inga", "Ned, Inga, Upp" and "Upp, Inga". 
+see vandhind_table to see the relative frquencies by site. Very variables. Assuming that the obstacles situation is stable
+over years, I will assign:
+"Inga" alone -> 0
+"Ned, Inga"-> 1
+"Ned, Inga, Upp" -> 1.5
+"Upp, Inga" -> 0.5
+
+check with Joacim and revise if needed
 
 -Migratory population: if migratory at least once over the years, set to 1
 
