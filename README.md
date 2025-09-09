@@ -109,7 +109,9 @@ over years, I will assign:
 
 check with Joacim and revise if needed
 
--Migratory population: if migratory at least once over the years, set to 1
+-Migratory population: if migratory at least once over the years, set to 1, otherwise 0. We are assuming 
+that the population migration startegy is stable over the years, consistently with the assumption that 
+obstaclesupp och ned did not change over time
 
 Predictive model for breakpoints: 
 consider/fix all covariates included in THS. Consider interaction altitude * stream width. 

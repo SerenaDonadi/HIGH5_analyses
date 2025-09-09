@@ -55,50 +55,14 @@ head(jamtland)
 
 
 
-# select which months
-hist(jamtland$MÅNAD)
 
-# check spatial hierarchy and missing values:
-unique(jamtland2$Län)
-unique(jamtland2$Länskod)
-unique(jamtland2$Haro_nr)
-unique(jamtland2$Huvudavrinningsområde) #6 levels
-unique(jamtland2$Hflodomr) #6
-unique(jamtland2$Biflnr)
-unique(jamtland2$Vattendrag ) #476
-unique(jamtland2$Lokal)#687 
-unique(jamtland2$Lokalnr)#67
-unique(jamtland2$Syfte)
-unique(jamtland2$Vandhind)
-unique(jamtland2$Typavpop)
-unique(jamtland2$Lokalvar)
-unique(jamtland2$Lokalvar)
-
-# OBS1: there are site with no name! 4
-filter(jamtland2, Lokal == " ")
 # assign a name based on coordinates:
 #jamtland2a <- jamtland2 %>%
 #  mutate(Lokal = ifelse(Lokal == " ", paste("Loc", XKOORLOK, YKOORLOK, sep="_"), Lokal))
 # check again:
 #unique(jamtland2a$Lokal)#713
 
-# OBS2: I am also afraid that the same Lokal name might be used in different Vattendrag
-# Count how many unique rivers each site appears in:
-jamtland2a %>%
-  distinct(Lokal, Vattendrag) %>%         # Remove duplicate site-river pairs
-  group_by(Lokal) %>%
-  summarise(n_rivers = n()) %>%
-  filter(n_rivers > 1)              # Keep only sites that appear in multiple rivers
-# indeed
 
-# explore hierarchical spatial and temporal structure.
-# how many years per site? first and last year of sampling?
-site_years<-jamtland3 %>% 
-  group_by(Hflodomr,Vattendrag,site) %>% 
-  summarise(n_dinstic_years = n_distinct(ÅR),
-            first_year = min(ÅR),
-            last_year = max(ÅR)) %>% 
-  arrange(desc(n_dinstic_years))
 
 # select only sites with at least 10 years of sampling 
 #site_years10<-site_years %>%
@@ -118,7 +82,20 @@ jamtland %>%
   filter(Öring0 == -9) 
 # 2 records. maybe typos. Exlude them
 
-# Because of missing names in lokal as well as same name in different rivers, 
+# select which months
+hist(jamtland$MÅNAD)
+
+# OBS1: there are site with no name! 4
+filter(jamtland, Lokal == " ")
+# Also, the same Lokal name might be used in different Vattendrag
+# Count how many unique rivers each site appears in:
+jamtland2a %>%
+  distinct(Lokal, Vattendrag) %>%         # Remove duplicate site-river pairs
+  group_by(Lokal) %>%
+  summarise(n_rivers = n()) %>%
+  filter(n_rivers > 1)              # Keep only sites that appear in multiple rivers
+# indeed
+
 # make a column with the coordinates as a character string, and use it as site name:
 jamtland1 <- jamtland %>%
   mutate(site = paste(XKOORLOK, YKOORLOK, sep = "_"))
@@ -278,33 +255,23 @@ VTYP_ED_scores <- jamtland2 %>%
 
 # Merge later to  data by site! TO DO
 
-
-
-
-
-
-# make a binary numeric variable with 0 för ström and 1 for either Hav or Insjö:
-jamtland2$VTYP_ED_bin<-NA
-jamtland2$VTYP_ED_bin[jamtland2$VTYP_ED == "Ström"]<-0
-jamtland2$VTYP_ED_bin[jamtland2$VTYP_ED == "Insjö"]<-1
-jamtland2$VTYP_ED_bin[jamtland2$VTYP_ED == "Hav"]<-1
-table(jamtland2$VTYP_ED, jamtland2$VTYP_ED_bin)
-
-# same for variable Typavpop, as they may not be consistent (migratory pop are 500 vs 470, and resident pop 930 vs 928, but the
-# discrepancy may be due to more missing values in Typavpop than in VTYP_ED)
-jamtland2$Typavpop_bin<-NA
-jamtland2$Typavpop_bin[jamtland2$Typavpop == "Ström"]<-0
-jamtland2$Typavpop_bin[jamtland2$Typavpop == "Vandr"]<-1
-table(jamtland2$Typavpop, jamtland2$Typavpop_bin)
-
 # retain only variables of interest:
 jamtland3 <- jamtland2 %>% 
   select(Öring0,Hflodomr, Vattendrag,site,Lokal,XKOORLOK, YKOORLOK,WGS84_Dec_N,WGS84_Dec_E,
          Fiskedatum,ÅR,MÅNAD,
-         Bredd, Maxdjup,Medeldju,Substr1,Vattente,Beskuggn,Vandhind,Vandhind_bin,VTYP_ED,VTYP_ED_bin,Typavpop,Typavpop_bin,Hoh,Avstupp,Avstner,
+         Bredd, Maxdjup,Medeldju,Substr1,Vattente,Beskuggn,Vandhind,VTYP_ED,Typavpop,Hoh,Avstupp,Avstner,
          mindistsj,LUTNING_PROM,MEDTEMPAR, MEDT_JULI,VIX,VIX_klass)
-
 head(jamtland3)
+
+
+# explore hierarchical spatial and temporal structure. (NON NEED TO RUN THE SCRIPT FOR ANALYSES)
+# how many years per site? first and last year of sampling?
+site_years<-jamtland3 %>% 
+  group_by(Hflodomr,Vattendrag,site) %>% 
+  summarise(n_dinstic_years = n_distinct(ÅR),
+            first_year = min(ÅR),
+            last_year = max(ÅR)) %>% 
+  arrange(desc(n_dinstic_years))
 
 #### group variables by site: ####
 # make a dataset with only the sites (one row per site), and bring along covaraites for later analyses
@@ -322,9 +289,6 @@ df.model.site <- jamtland3 %>%
             mean_avgdepth = mean(Medeldju, na.rm = TRUE),
             mean_watertemp = mean(Vattente, na.rm = TRUE),
             mean_shade = mean(Beskuggn, na.rm = TRUE),
-            mean_Vandhind_bin = mean(Vandhind_bin, na.rm = TRUE),
-            mean_VTYP_ED_bin = mean(VTYP_ED_bin, na.rm = TRUE),
-            mean_Typavpop_bin = mean(Typavpop_bin, na.rm = TRUE),
             mean_Hoh = mean(Hoh, na.rm = TRUE),
             mean_Avstupp = mean(Avstupp, na.rm = TRUE),
             mean_Avstner = mean(Avstner, na.rm = TRUE),
@@ -336,10 +300,15 @@ df.model.site <- jamtland3 %>%
             mean_VIX_klass= mean(VIX_klass, na.rm = TRUE)) %>%
   arrange(site)
 
-# change name for mmerging later:
-colnames(df.model.site)[which(names(df.model.site) == "mean_trout0")] <- "Trout0P"
-colnames(df.model.site)[which(names(df.model.site) == "site")] <- "Lokal"
-colnames(df.model.site)[which(names(df.model.site) == "Vattendrag")] <- "Vdrag"
+# MERGE WITH VANDHIND SCORES AND VTYP_ED SCORES:
+df.model.site1 <- left_join(df.model.site, vandhind_scores, by = "site")
+df.model.site2 <- left_join(df.model.site1, VTYP_ED_scores, by = "site")
+
+
+# change name for merging later:
+colnames(df.model.site2)[which(names(df.model.site2) == "mean_trout0")] <- "Trout0P"
+colnames(df.model.site2)[which(names(df.model.site2) == "site")] <- "Lokal"
+colnames(df.model.site2)[which(names(df.model.site2) == "Vattendrag")] <- "Vdrag"
 
 
 #### exploratory plots ####
