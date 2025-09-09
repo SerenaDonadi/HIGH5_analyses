@@ -52,129 +52,8 @@ head(jamtland)
 
 #### check data ####
 
-# check response variable:
-summary(jamtland$Öring0)
-# check values "-9":
-jamtland %>% 
-  filter(Öring0 == -9) 
-# 2 records. maybe typos. Exlude them
-
-# check Beskuggn
-table(jamtland$Beskuggn)
-
-library(openxlsx)
-write.xlsx(jamtland2, file="C:/RprojectsSerena/HIGH5/Output/jamtland2.xlsx",
-           sheetName = "", colNames = TRUE, rowNames = TRUE, append = F)
-
-# check Vandhind
-unique(jamtland2$Vandhind)
-table(jamtland2$Vandhind)
-# substitute " " values with NA: I did it below
-# transform Vandhind in a numeric variable? no need if values per site did not change over the years. Check, after removing NA:
-jamtland2 %>%
-  filter(!is.na(Vandhind)) %>%
-  group_by(site) %>%
-  summarise(n_unique_vandhind = n_distinct(Vandhind)) %>%
-  filter(n_unique_vandhind > 1)
-# I'd like to see which combinations of Vandhind values appear together in the same site:
-jamtland2 %>%
-  filter(!is.na(Vandhind)) %>%
-  group_by(site) %>%
-  summarise(vandhind_values = paste(sort(unique(Vandhind)), collapse = ", ")) %>%
-  distinct(vandhind_values) %>%
-  arrange(vandhind_values)
-# there are 4 combinations: "Inga" alone, and "Ned, Inga", "Ned, Inga, Upp" and "Upp, Inga". 
-# create a new variable with 0 for sites where Vand hind was always Inga, 1 if Ned and Inga were found over the years, 1.5 if
-# both Ned and Upp were found, and 0.5 if only Upp was recorded:
-
-######CHECK THIS BIT!
-# Load necessary library
-library(dplyr)
-library(readxl)
-
-# Define a function to classify Vandhind combinations
-classify_vandhind <- function(values) {
-  values <- unique(na.omit(trimws(values)))
-  
-  if (identical(values, "Inga")) {
-    return(0)
-  } else if (setequal(values, c("Ned", "Inga"))) {
-    return(1)
-  } else if ("Ned" %in% values && "Upp" %in% values) {
-    return(1.5)
-  } else if (identical(values, "Upp")) {
-    return(0.5)
-  } else {
-    return(NA)
-  }
-}
-
-# Apply the classification per site
-vandhind_scores <- jamtland2 %>%
-  group_by(site) %>%
-  summarise(Vandhind_score = classify_vandhind(Vandhind)) %>%
-  ungroup()
-
-# Merge back to original data
-df_with_scores <- left_join(df, vandhind_scores, by = "site")
-
-# View result
-head(df_with_scores)
 
 
-### if all this work, transfer this last part to the next section
-
-# count values of "Vandhind" by site:
-vandhind_freq<-jamtland2 %>%
-  filter(!is.na(Vandhind)) %>%
-  group_by(site, Vandhind) %>%
-  summarise(count = n()) %>%
-  arrange(site, Vandhind)
-view(vandhind_freq)
-# make a table with the counts:
-vandhind_table <- tidyr::pivot_wider(vandhind_freq, names_from = Vandhind, values_from = count, values_fill = 0)
-
-
-# check VTYP_ED and Typavpop
-table(jamtland2$VTYP_ED)
-unique(jamtland2$VTYP_ED)
-table(jamtland2$Typavpop)
-unique(jamtland2$Typavpop)
-# did it change over the years for the same site? yes
-jamtland2 %>%
-  filter(!is.na(VTYP_ED)) %>%
-  group_by(site) %>%
-  summarise(n_unique_VTYP_ED = n_distinct(VTYP_ED)) %>%
-  filter(n_unique_VTYP_ED > 1)
-# I'd like to see which combinations of VTYP_ED values appear together in the same site:
-jamtland2 %>%
-  filter(!is.na(VTYP_ED)) %>%
-  group_by(site) %>%
-  summarise(VTYP_EDvalues = paste(sort(unique(VTYP_ED)), collapse = ", ")) %>%
-  distinct(VTYP_EDvalues) %>%
-  arrange(VTYP_EDvalues)
-# Hav, Ström   
-# Insjö        
-# Insjö, Ström 
-# Ström 
-# make a binary numeric value with 0 för ström and 1 for either Hav or Insjö
-# check if Typavpop is consisten with VTYP_ED:
-jamtland2 %>%
-  filter(!is.na(Typavpop)) %>%
-  group_by(site) %>%
-  summarise(n_unique_Typavpop = n_distinct(Typavpop)) %>%
-  filter(n_unique_Typavpop > 1)
-# I'd like to see which combinations of Typavpop values appear together in the same site:
-jamtland2 %>%
-  filter(!is.na(Typavpop)) %>%
-  group_by(site) %>%
-  summarise(Typavpopvalues = paste(sort(unique(Typavpop)), collapse = ", ")) %>%
-  distinct(Typavpopvalues) %>%
-  arrange(Typavpopvalues)
-# Ström         
-# Ström, Vandr  
-# Vandr 
-# to be on the safe site I could make two binary numeric variables, one for each of this variables and see if they differ
 
 # select which months
 hist(jamtland$MÅNAD)
@@ -232,6 +111,13 @@ site_years<-jamtland3 %>%
 
 ##### fix variables and subsets ####
 
+# check response variable:
+summary(jamtland$Öring0)
+# check values "-9":
+jamtland %>% 
+  filter(Öring0 == -9) 
+# 2 records. maybe typos. Exlude them
+
 # Because of missing names in lokal as well as same name in different rivers, 
 # make a column with the coordinates as a character string, and use it as site name:
 jamtland1 <- jamtland %>%
@@ -245,22 +131,157 @@ jamtland2 <- jamtland1 %>%
   group_by(site) %>% 
   filter(n() > 9)
 
+
+# check Beskuggn
+table(jamtland$Beskuggn)
 # substitute values "-9" in Beskuggn with NA:
 jamtland2$Beskuggn[jamtland2$Beskuggn == -9] <- NA
 unique(jamtland2$Beskuggn)
 
+
+# check Vandhind
+unique(jamtland2$Vandhind)
+table(jamtland2$Vandhind)
 # substitute " " values in Vandhind with NA: 
 jamtland2$Vandhind[jamtland2$Vandhind == " "] <- NA
-# make a variable with 0 for "Inga" and "Upp", and 1 for "Ned"
-jamtland2$Vandhind_bin<-NA
-jamtland2$Vandhind_bin[jamtland2$Vandhind == "Inga"]<-0
-jamtland2$Vandhind_bin[jamtland2$Vandhind == "Ned"]<-1
-jamtland2$Vandhind_bin[jamtland2$Vandhind == "Upp"]<-1
-table(jamtland2$Vandhind, jamtland2$Vandhind_bin)
+# transform Vandhind in a numeric variable? no need if values per site did not change over the years. Check, after removing NA:
+jamtland2 %>%
+  filter(!is.na(Vandhind)) %>%
+  group_by(site) %>%
+  summarise(n_unique_vandhind = n_distinct(Vandhind)) %>%
+  filter(n_unique_vandhind > 1)
+# I'd like to see which combinations of Vandhind values appear together in the same site:
+jamtland2 %>%
+  filter(!is.na(Vandhind)) %>%
+  group_by(site) %>%
+  summarise(vandhind_values = paste(sort(unique(Vandhind)), collapse = ", ")) %>%
+  distinct(vandhind_values) %>%
+  arrange(vandhind_values)
+# there are 4 combinations: "Inga" alone, and "Ned, Inga", "Ned, Inga, Upp" and "Upp, Inga". 
+# create a new variable with 0 for sites where Vand hind was always Inga, 1 if Ned and Inga were found over the years, 1.5 if
+# both Ned and Upp were found, and 0.5 if only Upp and inga was recorded:
+
+# count values of "Vandhind" by site:
+vandhind_freq<-jamtland2 %>%
+  filter(!is.na(Vandhind)) %>%
+  group_by(site, Vandhind) %>%
+  summarise(count = n()) %>%
+  arrange(site, Vandhind)
+
+# make a table with the counts:
+vandhind_table <- tidyr::pivot_wider(vandhind_freq, names_from = Vandhind, values_from = count, values_fill = 0)
+
+# Load necessary library
+library(readxl)
+
+# Define a function to classify Vandhind combinations
+classify_vandhind <- function(values) {
+  values <- unique(na.omit(trimws(values)))
+  
+  # Case 1: All values are "Inga"
+  if (setequal(values, "Inga")) {
+    return(0)
+    
+    # Case 2: Values are "Ned" and "Inga"
+  } else if (setequal(values, c("Ned", "Inga"))) {
+    return(1)
+    
+    # Case 3: Values include "Ned", "Inga", and "Upp"
+  } else if (all(c("Ned", "Inga", "Upp") %in% values)) {
+    return(1.5)
+    
+    # Case 4: All values are "Upp" or "Inga" and "Upp" (but not "Ned")
+  } else if ("Upp" %in% values && !"Ned" %in% values) {
+    return(0.5)
+    
+    # Any other combination
+  } else {
+    return(NA)
+  }
+}
+
+# Apply the classification per site
+vandhind_scores <- jamtland2 %>%
+  group_by(site) %>%
+  summarise(Vandhind_score = classify_vandhind(Vandhind)) %>%
+  ungroup()
+
+# Merge later to  data by site! TO DO
+#df_with_scores <- left_join(df, vandhind_scores, by = "site")
+
+# check VTYP_ED and Typavpop
+table(jamtland2$VTYP_ED)
+unique(jamtland2$VTYP_ED)
+table(jamtland2$Typavpop)
+unique(jamtland2$Typavpop)
 
 # substitute " " values in VTYP_ED and Typavpop with NA: 
 jamtland2$VTYP_ED[jamtland2$VTYP_ED == " "] <- NA
 jamtland2$Typavpop[jamtland2$Typavpop == " "] <- NA
+
+# did it change over the years for the same site? yes
+jamtland2 %>%
+  filter(!is.na(VTYP_ED)) %>%
+  group_by(site) %>%
+  summarise(n_unique_VTYP_ED = n_distinct(VTYP_ED)) %>%
+  filter(n_unique_VTYP_ED > 1)
+# I'd like to see which combinations of VTYP_ED values appear together in the same site:
+jamtland2 %>%
+  filter(!is.na(VTYP_ED)) %>%
+  group_by(site) %>%
+  summarise(VTYP_EDvalues = paste(sort(unique(VTYP_ED)), collapse = ", ")) %>%
+  distinct(VTYP_EDvalues) %>%
+  arrange(VTYP_EDvalues)
+# Hav, Ström   
+# Insjö        
+# Insjö, Ström 
+# Ström 
+
+# check if Typavpop is consisten with VTYP_ED:
+jamtland2 %>%
+  filter(!is.na(Typavpop)) %>%
+  group_by(site) %>%
+  summarise(n_unique_Typavpop = n_distinct(Typavpop)) %>%
+  filter(n_unique_Typavpop > 1)
+# I'd like to see which combinations of Typavpop values appear together in the same site:
+jamtland2 %>%
+  filter(!is.na(Typavpop)) %>%
+  group_by(site) %>%
+  summarise(Typavpopvalues = paste(sort(unique(Typavpop)), collapse = ", ")) %>%
+  distinct(Typavpopvalues) %>%
+  arrange(Typavpopvalues)
+# Ström         
+# Ström, Vandr  
+# Vandr 
+# to be on the safe site I could make two binary numeric variables, one for each of this variables and see if they differ
+# however, there are more NAs in Typavpop than VTYP_ED, so this latter is my favorite
+
+# make a binary variable for VTYP_ED where 1 is assigned if at values "Insjö" or "Hav" have been found 
+# at least once in that site, and 0 if only "Ström" has been found
+
+# Define a function to classify VTYP_ED combinations
+classify_VTYP_ED <- function(values) {
+  values <- unique(na.omit(trimws(values)))
+  
+  if (all(values == "Ström")) {
+    return(0)
+  } else {
+    return(1)
+  }
+}
+
+# Apply the classification per site
+VTYP_ED_scores <- jamtland2 %>%
+  group_by(site) %>%
+  summarise(VTYP_ED_score = classify_VTYP_ED(VTYP_ED)) %>%
+  ungroup()
+
+# Merge later to  data by site! TO DO
+
+
+
+
+
 
 # make a binary numeric variable with 0 för ström and 1 for either Hav or Insjö:
 jamtland2$VTYP_ED_bin<-NA
