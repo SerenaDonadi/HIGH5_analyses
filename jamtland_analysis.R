@@ -50,28 +50,6 @@ library(ExcelFunctionsR)
 jamtland <- read.csv2("SERS_20250522_Jamtland_Filtered.csv",fileEncoding="ISO-8859-1", header=TRUE, sep=";", dec=",") 
 head(jamtland)
 
-#### check data ####
-
-
-
-
-
-# assign a name based on coordinates:
-#jamtland2a <- jamtland2 %>%
-#  mutate(Lokal = ifelse(Lokal == " ", paste("Loc", XKOORLOK, YKOORLOK, sep="_"), Lokal))
-# check again:
-#unique(jamtland2a$Lokal)#713
-
-
-
-# select only sites with at least 10 years of sampling 
-#site_years10<-site_years %>%
-#  filter(n_dinstic_years > 9)
-
-# select a subset in jamtland3 whose sites match those in the site_years10:
-#jamtland3_time_series<-jamtland3 %>%
-#  filter(site %in% unique(site_years10$site) & Vattendrag %in% unique(site_years10$Vattendrag))
-#unique(jamtland3_time_series$site) # 84 sites
 
 ##### fix variables and subsets ####
 
@@ -253,11 +231,51 @@ VTYP_ED_scores <- jamtland2 %>%
   ungroup()
 # Merge later to  data by site!
 
+# check Vattenha
+unique(jamtland2$Vattenha)
+table(jamtland2$Vattenha)
+# substitute " " values in Vandhind with NA: 
+jamtland2$Vattenha[jamtland2$Vattenha == " "] <- NA
+# transform Vattenha in a numeric variable? no need if values per site did not change over the years. Check, after removing NA:
+jamtland2 %>%
+  filter(!is.na(Vattenha)) %>%
+  group_by(site) %>%
+  summarise(n_unique_Vattenha = n_distinct(Vattenha)) %>%
+  filter(n_unique_Vattenha > 1)
+# I'd like to see which combinations of Vattenha values appear together in the same site:
+jamtland2 %>%
+  filter(!is.na(Vattenha)) %>%
+  group_by(site) %>%
+  summarise(Vattenha_values = paste(sort(unique(Vattenha)), collapse = ", ")) %>%
+  distinct(Vattenha_values) %>%
+  arrange(Vattenha_values)
+# there are 4 combinations: "Lugn, Strå, Strö", "Lugn, Strö", "Strå, Strö", "Strö"
+
+# count values of "Vandhind" by site:
+Vattenha_freq<-jamtland2 %>%
+  filter(!is.na(Vattenha)) %>%
+  group_by(site, Vattenha) %>%
+  summarise(count = n()) %>%
+  arrange(site, Vattenha)
+
+# make a table with the counts:
+Vattenha_table <- tidyr::pivot_wider(Vattenha_freq, names_from = Vattenha, values_from = count, values_fill = 0)
+# the majority seem to have most obs with one values and few with another. But there are exceptions. Transform in a 
+# numeric variable and get the avg? yes, but check with Joacim
+# 1=Lugn, 2=strömmande, 3=stråkande
+jamtland2$Vattenha_num<-as.numeric(jamtland2$Vattenha) # did not work, start from here
+unique(jamtland2$Vattenha_num)
+table(jamtland2$Vattenha_num)
+
+
+# check substrate:
+
+
 # retain only variables of interest:
 jamtland3 <- jamtland2 %>% 
   select(Öring0,Hflodomr, Vattendrag,site,Lokal,XKOORLOK, YKOORLOK,WGS84_Dec_N,WGS84_Dec_E,
          Fiskedatum,ÅR,MÅNAD,
-         Bredd, Maxdjup,Medeldju,Substr1,Vattente,Beskuggn,Vandhind,VTYP_ED,Typavpop,Hoh,Avstupp,Avstner,
+         Bredd, Maxdjup,Medeldju,Substr1,Vattenha, Vattente,Beskuggn,Vandhind,VTYP_ED,Typavpop,Hoh,Avstupp,Avstner,
          mindistsj,LUTNING_PROM,MEDTEMPAR, MEDT_JULI,VIX,VIX_klass)
 head(jamtland3)
 
@@ -916,6 +934,27 @@ summary(all_sites)
 # set VTYP_ED_score as a factor:
 all_sites$VTYP_ED_score_f<-as.factor(all_sites$VTYP_ED_score)
 
+summary(all_sites)
+table(all_sites$method_final)
+table(all_sites$fallback_used)
+
+# create a variable showing whether the mean trout density per site is above/below the avg at catchment
+plot(all_sites$mean_density, all_sites$thr_val)
+all_sites$good_or_bad <- ifelse(all_sites$mean_density - all_sites$thr_val >= 0, "good", "bad")
+table(all_sites$good_or_bad)
+table(all_sites$method_final,all_sites$good_or_bad)
+
+# explanatory factors:
+# Hflodomr as random: test correlations of resid
+# factors related to definition of breakpoints: fallback_used (or method_final), good_or_bad
+# env factors high priority: mean_width + mean_LUTNING_PROM + velocity + mean_avgdepth + substrate 
+# + mean_shade (THS)
+# others: Vandhind_score, mean_Hoh, mean_mindistsj, mean_Avstner, mean_Avstupp, mean_MEDTEMPAR, mean_MEDT_JULI
+# trout variables: VTYP_ED_score, mean_density (mean site density), thr_val (mean catchment density)
+# interactions to test: mean_Hoh*mean_width
+
+
+#####
 # exploratory plots
 ggplot(all_sites, aes(x=Lokal, y=clx_final, col = Vdrag, fill=Vdrag)) +
   geom_bar(stat="identity")+
@@ -938,3 +977,5 @@ ggplot(all_sites, aes(x = mean_VIX, y = clx_final)) +
 hist(all_sites$VTYP_ED_score)
 hist(all_sites$Vandhind_score)
 table(all_sites$VTYP_ED_score_f, all_sites$Vandhind_score)
+
+
