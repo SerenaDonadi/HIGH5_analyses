@@ -93,7 +93,6 @@ table(jamtland$Beskuggn)
 jamtland2$Beskuggn[jamtland2$Beskuggn == -9] <- NA
 unique(jamtland2$Beskuggn)
 
-
 # check Vandhind
 unique(jamtland2$Vandhind)
 table(jamtland2$Vandhind)
@@ -251,7 +250,7 @@ jamtland2 %>%
   arrange(Vattenha_values)
 # there are 4 combinations: "Lugn, Strå, Strö", "Lugn, Strö", "Strå, Strö", "Strö"
 
-# count values of "Vandhind" by site:
+# count values of "Vattenha" by site:
 Vattenha_freq<-jamtland2 %>%
   filter(!is.na(Vattenha)) %>%
   group_by(site, Vattenha) %>%
@@ -260,23 +259,79 @@ Vattenha_freq<-jamtland2 %>%
 
 # make a table with the counts:
 Vattenha_table <- tidyr::pivot_wider(Vattenha_freq, names_from = Vattenha, values_from = count, values_fill = 0)
-# the majority seem to have most obs with one values and few with another. But there are exceptions. Transform in a 
-# numeric variable and get the avg? yes, but check with Joacim
-# 1=Lugn, 2=strömmande, 3=stråkande
-jamtland2$Vattenha_num<-as.numeric(jamtland2$Vattenha) # did not work, start from here
-unique(jamtland2$Vattenha_num)
-table(jamtland2$Vattenha_num)
+# the majority seem to have most obs with one values and few with another. But there are exceptions. 
+# 1) I can take the one which is more frequent and merge later 
+names(Vattenha_table)
+Vattenha_table$Vattenha_fac <- colnames(Vattenha_table[, c(2:4)])[
+  max.col(Vattenha_table[, c(2:4)], ties.method = "random")]
+# To merge later with site level data!
 
+# transform in numeric variable and get the avg later
+# 1=Lugn, 2=strömmande, 3=stråkande
+# copy vector:
+jamtland2$Vattenha_num<-jamtland2$Vattenha
+jamtland2$Vattenha_num[jamtland2$Vattenha_num == "Lugn"] <- 1
+jamtland2$Vattenha_num[jamtland2$Vattenha_num == "Strö"] <- 2
+jamtland2$Vattenha_num[jamtland2$Vattenha_num == "Strå"] <- 3
+unique(jamtland2$Vattenha_num)
+table(jamtland2$Vattenha,jamtland2$Vattenha_num)
+jamtland2$Vattenha_num<-as.numeric(jamtland2$Vattenha_num)
 
 # check substrate:
+# check Substr1
+table(jamtland2$Substr1)
+unique(jamtland2$Substr1)
+
+# did it change over the years for the same site? yes
+jamtland2 %>%
+  filter(!is.na(Substr1)) %>%
+  group_by(site) %>%
+  summarise(n_unique_Substr1 = n_distinct(Substr1)) %>%
+  filter(n_unique_Substr1 > 1)
+# I'd like to see which combinations of VTYP_ED values appear together in the same site:
+jamtland2 %>%
+  filter(!is.na(Substr1)) %>%
+  group_by(site) %>%
+  summarise(Substr1values = paste(sort(unique(Substr1)), collapse = ", ")) %>%
+  distinct(Substr1values) %>%
+  arrange(Substr1values)
+
+# count values of "Substr1" by site:
+Substr1_freq<-jamtland2 %>%
+  filter(!is.na(Substr1)) %>%
+  group_by(site, Substr1) %>%
+  summarise(count = n()) %>%
+  arrange(site, Substr1)
+
+# make a table with the counts:
+Substr1_table <- tidyr::pivot_wider(Substr1_freq, names_from = Substr1, values_from = count, values_fill = 0)
+# 1) I can take the one which is more frequent and merge later 
+names(Substr1_table)
+Substr1_table$Substr1_fac <- colnames(Substr1_table[, c(2:6,8:12)])[
+  max.col(Substr1_table[, c(2:6,8:12)], ties.method = "random")]
+# To merge later with site level data!
+
+# 2) I can use an old numeric conversion from SERS(o Erik) and take later the avg by sites:
+# 1=Fin 2=sand 3=Grus 4=sten1+Sten2 5=block1+2+3 6=Häll 
+jamtland2$Substr1_num<-jamtland2$Substr1
+jamtland2$Substr1_num[jamtland2$Substr1_num == " "] <- NA
+jamtland2$Substr1_num[jamtland2$Substr1_num == "Fin"] <- 1
+jamtland2$Substr1_num[jamtland2$Substr1_num == "Sand"] <- 2
+jamtland2$Substr1_num[jamtland2$Substr1_num == "Grus"] <- 3
+jamtland2$Substr1_num[jamtland2$Substr1_num %in% c("Sten1", "Sten2", "Sten")] <- 4
+jamtland2$Substr1_num[jamtland2$Substr1_num %in% c("Block1", "Block2","Block3","Block")] <- 5
+jamtland2$Substr1_num[jamtland2$Substr1_num == "Häll"] <- 6
+unique(jamtland2$Substr1_num)
+table(jamtland2$Substr1,jamtland2$Substr1_num)
+jamtland2$Substr1_num<-as.numeric(jamtland2$Substr1_num)
 
 
 # retain only variables of interest:
 jamtland3 <- jamtland2 %>% 
   select(Öring0,Hflodomr, Vattendrag,site,Lokal,XKOORLOK, YKOORLOK,WGS84_Dec_N,WGS84_Dec_E,
-         Fiskedatum,ÅR,MÅNAD,
-         Bredd, Maxdjup,Medeldju,Substr1,Vattenha, Vattente,Beskuggn,Vandhind,VTYP_ED,Typavpop,Hoh,Avstupp,Avstner,
-         mindistsj,LUTNING_PROM,MEDTEMPAR, MEDT_JULI,VIX,VIX_klass)
+         Fiskedatum,ÅR,MÅNAD,Bredd, Maxdjup,Medeldju,Substr1,Substr1_num,Vattenha,
+         Vattenha_num,Vattente,Beskuggn,Vandhind,VTYP_ED,Typavpop,Hoh,Avstupp,
+         Avstner, mindistsj,LUTNING_PROM,MEDTEMPAR, MEDT_JULI,VIX,VIX_klass)
 head(jamtland3)
 
 
@@ -303,6 +358,8 @@ df.model.site <- jamtland3 %>%
             mean_width = mean(Bredd, na.rm = TRUE),
             mean_maxdepth = mean(Maxdjup, na.rm = TRUE),
             mean_avgdepth = mean(Medeldju, na.rm = TRUE),
+            mean_Substr1_num = mean(Substr1_num, na.rm = TRUE),
+            mean_Vattenha_num = mean(Vattenha_num, na.rm = TRUE),
             mean_watertemp = mean(Vattente, na.rm = TRUE),
             mean_shade = mean(Beskuggn, na.rm = TRUE),
             mean_Hoh = mean(Hoh, na.rm = TRUE),
@@ -316,15 +373,22 @@ df.model.site <- jamtland3 %>%
             mean_VIX_klass= mean(VIX_klass, na.rm = TRUE)) %>%
   arrange(site)
 
-# MERGE WITH VANDHIND SCORES AND VTYP_ED SCORES:
-df.model.site1 <- left_join(df.model.site, vandhind_scores, by = "site")
-df.model.site2 <- left_join(df.model.site1, VTYP_ED_scores, by = "site")
+# MERGE WITH VANDHIND SCORES AND VTYP_ED SCORES, and vatten and substrate tables
+df.model.site0 <- left_join(df.model.site, vandhind_scores, by = "site")
+df.model.site1 <- left_join(df.model.site0, VTYP_ED_scores, by = "site")
+df.model.site1a <- left_join(df.model.site1, Substr1_table, by = "site")
+df.model.site2 <- left_join(df.model.site1a, Vattenha_table, by = "site")
+colnames(df.model.site2)
+# remove column not needed:
+df.model.site2<-df.model.site2 %>%
+  select(-c(Block1 ,Block2 ,Block3 ,Block,Sten1,Sten2,Sten, Grus," ", Sand, Häll, Strå,Strö,Lugn)) 
 
 
-# change name for merging later:
+# change names for merging later:
 colnames(df.model.site2)[which(names(df.model.site2) == "mean_trout0")] <- "Trout0P"
 colnames(df.model.site2)[which(names(df.model.site2) == "site")] <- "Lokal"
 colnames(df.model.site2)[which(names(df.model.site2) == "Vattendrag")] <- "Vdrag"
+
 
 
 #### exploratory plots ####
@@ -929,11 +993,6 @@ for (i in seq_len(nrow(pick))) {
 
 # merge results.clx with df.model.site2
 all_sites<-merge(df.model.site2, results.clx, by = c("Lokal","Vdrag", "Hflodomr"), all = T, sort = F) # 
-summary(all_sites)
-
-# set VTYP_ED_score as a factor:
-all_sites$VTYP_ED_score_f<-as.factor(all_sites$VTYP_ED_score)
-
 summary(all_sites)
 table(all_sites$method_final)
 table(all_sites$fallback_used)
