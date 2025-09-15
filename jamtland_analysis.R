@@ -5,8 +5,8 @@ rm(list=ls())
             "C:/Program Files/R/R-4.5.1/library"))
           
 
-dir.exists("C:/R projects Serena/HIGH5/HIGH5_data")
-setwd("C:/R projects Serena/HIGH5/HIGH5_data")
+dir.exists("C:/RprojectsSerena/HIGH5/HIGH5_data")
+setwd("C:/RprojectsSerena/HIGH5/HIGH5_data")
 
 #### To save the R environment ####
 # press the save button in the "Environment" window here on the right.Or (but noit sure it works as well), run this script at the end of your session:
@@ -391,7 +391,7 @@ colnames(df.model.site2)[which(names(df.model.site2) == "Vattendrag")] <- "Vdrag
 
 
 
-#### exploratory plots ####
+#exploratory plots (all obs, i.e. site*year, as replicate)
 ggplot(subset(jamtland3, Vattendrag %in% c("Aloppan")),
        aes(x = ÅR , y = Öring0)) +
   geom_point()+
@@ -1006,15 +1006,13 @@ table(all_sites$method_final,all_sites$good_or_bad)
 # explanatory factors:
 # Hflodomr as random: test correlations of resid
 # factors related to definition of breakpoints: fallback_used (or method_final), good_or_bad
-# env factors high priority: mean_width + mean_LUTNING_PROM + velocity + mean_avgdepth + substrate 
-# + mean_shade (THS)
+# env factors high priority: mean_width + mean_LUTNING_PROM + mean_avgdepth + mean_Substr1_num, Substr1_fac,
+# + mean_Vattenha_num, Vattenha_fac + mean_shade (THS)
 # others: Vandhind_score, mean_Hoh, mean_mindistsj, mean_Avstner, mean_Avstupp, mean_MEDTEMPAR, mean_MEDT_JULI
 # trout variables: VTYP_ED_score, mean_density (mean site density), thr_val (mean catchment density)
 # interactions to test: mean_Hoh*mean_width
 
-
-#####
-# exploratory plots
+###### exploratory plots (sites as replicates)####
 ggplot(all_sites, aes(x=Lokal, y=clx_final, col = Vdrag, fill=Vdrag)) +
   geom_bar(stat="identity")+
   #facet_wrap(~Vdrag)+
@@ -1037,4 +1035,75 @@ hist(all_sites$VTYP_ED_score)
 hist(all_sites$Vandhind_score)
 table(all_sites$VTYP_ED_score_f, all_sites$Vandhind_score)
 
+##### recursive regression trees####
+library(rpart)
 
+# including only variables in the THS (sub and water vel as factors)
+M1<-rpart(clx_final~mean_width + mean_LUTNING_PROM + mean_avgdepth+ Substr1_fac + Vattenha_fac + mean_shade,
+          data = all_sites)
+print(M1)
+plot(M1)
+text(M1)
+summary(M1)
+M1fit<-prune(M1, cp = 0.02)
+par(mar=rep(0.1,4))
+plot(M1fit, branch = 0.3, compress = TRUE)
+text(M1fit)
+
+# including only variables in the THS (sub and water vel as numeric)
+M2<-rpart(clx_final~mean_width + mean_LUTNING_PROM + mean_avgdepth+ mean_Substr1_num + mean_Vattenha_num + mean_shade,
+          data = all_sites)
+
+print(M2)
+plot(M2)
+text(M2)
+summary(M2)
+M2fit<-prune(M2, cp = 0.02)
+par(mar=rep(0.1,4))
+plot(M2fit, branch = 0.3, compress = TRUE)
+text(M2fit)
+
+# including all possible factors
+M3<-rpart(clx_final~mean_width + mean_LUTNING_PROM + mean_avgdepth+ mean_shade+
+            mean_Substr1_num + mean_Vattenha_num +Substr1_fac + Vattenha_fac +
+            Vandhind_score+ mean_Hoh+mean_mindistsj+ mean_Avstner+ mean_Avstupp+mean_MEDTEMPAR+mean_MEDT_JULI+
+            VTYP_ED_score+ mean_density + thr_val+fallback_used+good_or_bad +Hflodomr,
+          data = all_sites)
+print(M3)
+plot(M3)
+text(M3)
+summary(M3)
+M3fit<-prune(M3, cp = 0.02)
+par(mar=rep(0.1,4))
+plot(M3fit, branch = 0.3, compress = TRUE)
+text(M3fit)
+
+# stepwise removal of: mean density
+M4<-rpart(clx_final~mean_width + mean_LUTNING_PROM + mean_avgdepth+ mean_shade+
+            mean_Substr1_num + mean_Vattenha_num +Substr1_fac + Vattenha_fac +
+            Vandhind_score+ mean_Hoh+mean_mindistsj+ mean_Avstner+ mean_Avstupp+mean_MEDTEMPAR+mean_MEDT_JULI+
+            VTYP_ED_score + thr_val+fallback_used+good_or_bad +Hflodomr,
+          data = all_sites)
+print(M4)
+plot(M4)
+text(M4)
+summary(M4)
+M4fit<-prune(M4, cp = 0.02)
+par(mar=rep(0.1,4))
+plot(M4fit, branch = 0.3, compress = TRUE)
+text(M4fit)
+
+# stepwise removal of: good_or_bad
+M5<-rpart(clx_final~mean_width + mean_LUTNING_PROM + mean_avgdepth+ mean_shade+
+            mean_Substr1_num + mean_Vattenha_num +Substr1_fac + Vattenha_fac +
+            Vandhind_score+ mean_Hoh+mean_mindistsj+ mean_Avstner+ mean_Avstupp+mean_MEDTEMPAR+mean_MEDT_JULI+
+            VTYP_ED_score + thr_val+fallback_used +Hflodomr,
+          data = all_sites)
+print(M5)
+plot(M5)
+text(M5)
+summary(M5)
+M5fit<-prune(M5, cp = 0.02)
+par(mar=rep(0.1,4))
+plot(M5fit, branch = 0.3, compress = TRUE)
+text(M5fit)
