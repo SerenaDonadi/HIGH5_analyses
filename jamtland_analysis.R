@@ -1040,7 +1040,7 @@ library(rpart)
 
 # including only variables in the THS (sub and water vel as factors)
 M1<-rpart(clx_final~mean_width + mean_LUTNING_PROM + mean_avgdepth+ Substr1_fac + Vattenha_fac + mean_shade,
-          data = all_sites)
+          control = rpart.control(cp = 0.01),data = all_sites)
 print(M1)
 plot(M1)
 text(M1)
@@ -1049,6 +1049,41 @@ M1fit<-prune(M1, cp = 0.02)
 par(mar=rep(0.1,4))
 plot(M1fit, branch = 0.3, compress = TRUE)
 text(M1fit)
+# The compress option tries to narrow the printout by vertically overlapping 
+# portions of the plot. The branch option controls the shape of the branches 
+# that connect a node to its children
+
+# implementing function control:
+# minsplit: The minimum number of observations in a node for which the routine
+# will even try to compute a split. The default is 20. 
+# minbucket: The minimum number of observations in a terminal node.
+# xval: The number of cross-validations to be done. Usually set to zero during
+# exploratory phases of the analysis.
+# cp: The threshold complexity parameter. 
+# if any split does not increase the overall R2 of the model by at least cp
+# then that split is decreed to be not worth pursuing.
+M1a<-rpart(clx_final~mean_width + mean_LUTNING_PROM + mean_avgdepth+ Substr1_fac + Vattenha_fac + mean_shade,
+          control = rpart.control(xval = 10, minbucket = 10, cp = 0.01), data = all_sites)
+print(M1a)
+plot(M1a)
+text(M1a)
+summary(M1a)
+
+# Explore the difference between Gini and information Index as splitting rule in M1
+M1b<-rpart(clx_final~mean_width + mean_LUTNING_PROM + mean_avgdepth+ Substr1_fac + Vattenha_fac + mean_shade,
+          control = rpart.control(cp = 0.01),parms = list(split = 'gini'),
+          data = all_sites)
+print(M1b)
+plot(M1b)
+text(M1b)
+# same as above, it is dthe default
+M1b<-rpart(clx_final~mean_width + mean_LUTNING_PROM + mean_avgdepth+ Substr1_fac + Vattenha_fac + mean_shade,
+           control = rpart.control(cp = 0.01),parms = list(split = 'information'),
+           data = all_sites)
+print(M1b)
+plot(M1b)
+text(M1b)
+
 
 # including only variables in the THS (sub and water vel as numeric)
 M2<-rpart(clx_final~mean_width + mean_LUTNING_PROM + mean_avgdepth+ mean_Substr1_num + mean_Vattenha_num + mean_shade,
