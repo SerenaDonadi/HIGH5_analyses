@@ -1076,14 +1076,13 @@ M1b<-rpart(clx_final~mean_width + mean_LUTNING_PROM + mean_avgdepth+ Substr1_fac
 print(M1b)
 plot(M1b)
 text(M1b)
-# same as above, it is dthe default
+# same as above, it is the default
 M1b<-rpart(clx_final~mean_width + mean_LUTNING_PROM + mean_avgdepth+ Substr1_fac + Vattenha_fac + mean_shade,
            control = rpart.control(cp = 0.01),parms = list(split = 'information'),
            data = all_sites)
 print(M1b)
 plot(M1b)
 text(M1b)
-
 
 # including only variables in the THS (sub and water vel as numeric)
 M2<-rpart(clx_final~mean_width + mean_LUTNING_PROM + mean_avgdepth+ mean_Substr1_num + mean_Vattenha_num + mean_shade,
@@ -1097,6 +1096,31 @@ M2fit<-prune(M2, cp = 0.02)
 par(mar=rep(0.1,4))
 plot(M2fit, branch = 0.3, compress = TRUE)
 text(M2fit)
+
+# including only variables in the THS (sub and water vel as factor) + good/bad sites
+# good_or_bad:mean of site is >= mean of catchment
+# fallback_used: plateau vs q90 method 
+# method_final: linear plateau vs quadratic plateau vs q90
+M1b<-rpart(clx_final~mean_width + mean_LUTNING_PROM + mean_avgdepth+ Substr1_fac + Vattenha_fac + mean_shade
+           + method_final+fallback_used+good_or_bad,
+           control = rpart.control(xval = 10, minbucket = 10, cp = 0.01), data = all_sites)
+print(M1b)
+par(mar = rep(0.1, 4))
+plot(M1b)
+text(M1b)
+summary(M1b)
+
+par(mar = rep(3, 4))
+hist(all_sites$mean_width)
+summary(all_sites$mean_avgdepth)
+table(all_sites$Substr1_fac)
+
+
+
+
+
+
+
 
 # including all possible factors
 M3<-rpart(clx_final~mean_width + mean_LUTNING_PROM + mean_avgdepth+ mean_shade+
