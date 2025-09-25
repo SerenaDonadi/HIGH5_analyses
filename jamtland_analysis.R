@@ -1110,32 +1110,66 @@ plot(M1b)
 text(M1b)
 summary(M1b)
 
-par(mar = rep(3, 4))
+par(mar = rep(4, 4))
+rsq.rpart(M1b)
+
 hist(all_sites$mean_width)
 summary(all_sites$mean_avgdepth)
 table(all_sites$Substr1_fac)
 
+# run the model on a subset of only good site:
+good_sites<-all_sites%>%
+  filter(good_or_bad=="good")
+
+M1sub<-rpart(clx_final~mean_width + mean_LUTNING_PROM + mean_avgdepth+ Substr1_fac + Vattenha_fac + mean_shade,
+           control = rpart.control(xval = 10, minbucket = 5, cp = 0.01), 
+           data = good_sites)
+print(M1sub)
+par(mar = rep(0.1, 4))
+plot(M1sub)
+text(M1sub)
+summary(M1sub)
+rsq.rpart(M1sub)
+
+table(good_sites$Substr1_fac)
+
+# for curiosity, run the model on a subset of only bad site:
+bad_sites<-all_sites%>%
+  filter(good_or_bad=="bad")
+
+M1sub<-rpart(clx_final~mean_width + mean_LUTNING_PROM + mean_avgdepth+ Substr1_fac + Vattenha_fac + mean_shade,
+             control = rpart.control(xval = 10, minbucket = 5, cp = 0.01), 
+             data = bad_sites)
+print(M1sub)
+par(mar = rep(0.1, 4))
+plot(M1sub)
+text(M1sub)
+summary(M1sub)
+par(mar = rep(4, 4))
+rsq.rpart(M1sub)
+
+table(good_sites$Substr1_fac)
 
 
-
-
-
-
-
-# including all possible factors
+# including all possible factors and info on site and catchment
 M3<-rpart(clx_final~mean_width + mean_LUTNING_PROM + mean_avgdepth+ mean_shade+
             mean_Substr1_num + mean_Vattenha_num +Substr1_fac + Vattenha_fac +
-            Vandhind_score+ mean_Hoh+mean_mindistsj+ mean_Avstner+ mean_Avstupp+mean_MEDTEMPAR+mean_MEDT_JULI+
-            VTYP_ED_score+ mean_density + thr_val+fallback_used+good_or_bad +Hflodomr,
-          data = all_sites)
+            Vandhind_score+ mean_Hoh+mean_mindistsj+ mean_Avstner+ mean_Avstupp+
+            mean_MEDTEMPAR+mean_MEDT_JULI+VTYP_ED_score+ Hflodomr+
+            mean_density + thr_val+fallback_used+good_or_bad,
+          control = rpart.control(xval = 10, minbucket = 10, cp = 0.01), data = all_sites)
 print(M3)
 plot(M3)
 text(M3)
 summary(M3)
-M3fit<-prune(M3, cp = 0.02)
+M3fit<-prune(M3, cp = 0.09)
 par(mar=rep(0.1,4))
 plot(M3fit, branch = 0.3, compress = TRUE)
 text(M3fit)
+par(mar=rep(4,4))
+rsq.rpart(M3)
+
+
 
 # stepwise removal of: mean density
 M4<-rpart(clx_final~mean_width + mean_LUTNING_PROM + mean_avgdepth+ mean_shade+
