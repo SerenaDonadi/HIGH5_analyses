@@ -1159,15 +1159,25 @@ M3<-rpart(clx_final~mean_width + mean_LUTNING_PROM + mean_avgdepth+ mean_shade+
             mean_density + thr_val+fallback_used+good_or_bad,
           control = rpart.control(xval = 10, minbucket = 10, cp = 0.01), data = all_sites)
 print(M3)
-plot(M3)
-text(M3)
+par(mar=rep(0.2,4))
+plot(M3, uniform = TRUE, branch = 1, compress = TRUE, margin = 0.1)
+plot(M3, uniform = TRUE, branch = 0, compress = TRUE,margin = 0.1)
+text(M3,use.n = TRUE,all = TRUE, fancy = TRUE, cex = 0.9)
 summary(M3)
+rsq.rpart(M3)
+plot(predict(M3), jitter(resid(M3)))
+abline(h = 0, lty = 2)
+# The fancy option of text creates the ellipses and rectangles, and moves the 
+# splitting rule to the midpoints of the branches. Margin shrinks the plotting 
+# region slightly so that the text boxes don’t run over the edge of the plot. 
+# The branch option makes the lines exit the ellipse at a “good” angle. 
+
 M3fit<-prune(M3, cp = 0.09)
 par(mar=rep(0.1,4))
 plot(M3fit, branch = 0.3, compress = TRUE)
 text(M3fit)
-par(mar=rep(4,4))
-rsq.rpart(M3)
+prune.rpart(M3, cp = 0.09)
+
 
 
 
