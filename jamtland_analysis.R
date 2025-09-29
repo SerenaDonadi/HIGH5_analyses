@@ -1163,6 +1163,7 @@ par(mar=rep(0.2,4))
 plot(M3, uniform = TRUE, branch = 1, compress = TRUE, margin = 0.1)
 plot(M3, uniform = TRUE, branch = 0, compress = TRUE,margin = 0.1)
 text(M3,use.n = TRUE,all = TRUE, fancy = TRUE, cex = 0.9)
+summary(all_sites$clx_final)
 summary(M3)
 rsq.rpart(M3)
 plot(predict(M3), jitter(resid(M3)))
@@ -1179,34 +1180,79 @@ text(M3fit)
 prune.rpart(M3, cp = 0.09)
 
 
+# including all possible factors and info on only catchment
+M1<-rpart(clx_final~mean_width + mean_LUTNING_PROM + mean_avgdepth+ mean_shade+
+            mean_Substr1_num + mean_Vattenha_num +Substr1_fac + Vattenha_fac +
+            Vandhind_score+ mean_Hoh+mean_mindistsj+ mean_Avstner+ mean_Avstupp+
+            mean_MEDTEMPAR+mean_MEDT_JULI+VTYP_ED_score+ Hflodomr+
+            thr_val, #+ mean_density +fallback_used+good_or_bad,
+          control = rpart.control(xval = 10, minbucket = 10, cp = 0.01), data = all_sites)
+print(M1)
+par(mar=rep(0.2,4))
+plot(M1, uniform = TRUE, branch = 1, compress = TRUE, margin = 0.1)
+plot(M1, uniform = TRUE, branch = 0, compress = TRUE,margin = 0.1)
+text(M1,use.n = TRUE,all = TRUE, fancy = TRUE, cex = 0.9)
+summary(M1)
+par(mar=rep(4,4))
+rsq.rpart(M1)
+plot(predict(M1), jitter(resid(M1)))
+abline(h = 0, lty = 2)
 
+M1fit<-prune(M1, cp =0.2 )
+par(mar=rep(0.2,4))
+plot(M1fit, branch = 0.3, compress = TRUE,margin = 0.1)
+text(M1fit,use.n = TRUE,all = TRUE, fancy = TRUE, cex = 0.9)
+prune.rpart(M1, cp = 0.02)
 
-# stepwise removal of: mean density
+# depth was A good surrogate of mean density. What happens if I remove only that?
+# and then also good_or_bad?
+M3a<-rpart(clx_final~mean_width + mean_LUTNING_PROM + mean_avgdepth+ mean_shade+
+            mean_Substr1_num + mean_Vattenha_num +Substr1_fac + Vattenha_fac +
+            Vandhind_score+ mean_Hoh+mean_mindistsj+ mean_Avstner+ mean_Avstupp+
+            mean_MEDTEMPAR+mean_MEDT_JULI+VTYP_ED_score+ Hflodomr+
+             + thr_val+fallback_used,#+good_or_bad, #mean_density
+          control = rpart.control(xval = 10, minbucket = 10, cp = 0.01), data = all_sites)
+print(M3a)
+par(mar=rep(0.2,4))
+plot(M3a, uniform = TRUE, branch = 1, compress = TRUE, margin = 0.1)
+plot(M3a, uniform = TRUE, branch = 0, compress = TRUE,margin = 0.1)
+text(M3a,use.n = TRUE,all = TRUE, fancy = TRUE, cex = 0.9)
+summary(M3a)
+
+# including all possible factors and info on only site: same model as M3 above
+M2<-rpart(clx_final~mean_width + mean_LUTNING_PROM + mean_avgdepth+ mean_shade+
+            mean_Substr1_num + mean_Vattenha_num +Substr1_fac + Vattenha_fac +
+            Vandhind_score+ mean_Hoh+mean_mindistsj+ mean_Avstner+ mean_Avstupp+
+            mean_MEDTEMPAR+mean_MEDT_JULI+VTYP_ED_score+ Hflodomr+
+            mean_density, #thr_val +fallback_used+good_or_bad,
+          control = rpart.control(xval = 10, minbucket = 10, cp = 0.01), data = all_sites)
+print(M2)
+par(mar=rep(0.2,4))
+plot(M2, uniform = TRUE, branch = 1, compress = TRUE, margin = 0.1)
+plot(M2, uniform = TRUE, branch = 0, compress = TRUE,margin = 0.1)
+text(M2,use.n = TRUE,all = TRUE, fancy = TRUE, cex = 0.9)
+summary(M2)
+
+# including all possible factors and no prior info on site or catchment
 M4<-rpart(clx_final~mean_width + mean_LUTNING_PROM + mean_avgdepth+ mean_shade+
             mean_Substr1_num + mean_Vattenha_num +Substr1_fac + Vattenha_fac +
-            Vandhind_score+ mean_Hoh+mean_mindistsj+ mean_Avstner+ mean_Avstupp+mean_MEDTEMPAR+mean_MEDT_JULI+
-            VTYP_ED_score + thr_val+fallback_used+good_or_bad +Hflodomr,
-          data = all_sites)
+            Vandhind_score+ mean_Hoh+mean_mindistsj+ mean_Avstner+ mean_Avstupp+
+            mean_MEDTEMPAR+mean_MEDT_JULI+VTYP_ED_score+ Hflodomr,
+            #mean_density, thr_val +fallback_used+good_or_bad,
+          control = rpart.control(xval = 10, minbucket = 10, cp = 0.01), data = all_sites)
 print(M4)
-plot(M4)
-text(M4)
+par(mar=rep(0.2,4))
+plot(M4, uniform = TRUE, branch = 1, compress = TRUE, margin = 0.1)
+plot(M4, uniform = TRUE, branch = 0, compress = TRUE,margin = 0.1)
+text(M4,use.n = TRUE,all = TRUE, fancy = TRUE, cex = 0.9)
 summary(M4)
-M4fit<-prune(M4, cp = 0.02)
-par(mar=rep(0.1,4))
-plot(M4fit, branch = 0.3, compress = TRUE)
-text(M4fit)
+par(mar=rep(4,4))
+rsq.rpart(M4)
+plot(predict(M4), jitter(resid(M4)))
+abline(h = 0, lty = 2)
 
-# stepwise removal of: good_or_bad
-M5<-rpart(clx_final~mean_width + mean_LUTNING_PROM + mean_avgdepth+ mean_shade+
-            mean_Substr1_num + mean_Vattenha_num +Substr1_fac + Vattenha_fac +
-            Vandhind_score+ mean_Hoh+mean_mindistsj+ mean_Avstner+ mean_Avstupp+mean_MEDTEMPAR+mean_MEDT_JULI+
-            VTYP_ED_score + thr_val+fallback_used +Hflodomr,
-          data = all_sites)
-print(M5)
-plot(M5)
-text(M5)
-summary(M5)
-M5fit<-prune(M5, cp = 0.02)
-par(mar=rep(0.1,4))
-plot(M5fit, branch = 0.3, compress = TRUE)
-text(M5fit)
+M4fit<-prune(M4, cp = )
+par(mar=rep(0.2,4))
+plot(M4fit, branch = 0.3, compress = TRUE,margin = 0.1)
+text(M4fit,use.n = TRUE,all = TRUE, fancy = TRUE, cex = 0.9)
+
