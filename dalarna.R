@@ -57,9 +57,6 @@ head(all_data)
 all_data1 <- all_data %>%
   mutate(site = paste(XKOORLOK, YKOORLOK, sep = "_"))
 
-
-
-
 # substitute values "-9" in Beskuggn with NA:
 all_data1$Beskuggn[all_data1$Beskuggn == -9] <- NA
 
@@ -184,6 +181,123 @@ VTYP_ED_scores_all_data1 <- all_data1 %>%
   ungroup()
 # Merge later to  data by site!
 
+# check Vattenha
+unique(all_data1$Vattenha)
+table(all_data1$Vattenha)
+# substitute " " values in Vandhind with NA: 
+all_data1$Vattenha[all_data1$Vattenha == " "] <- NA
+# transform Vattenha in a numeric variable? no need if values per site did not change over the years. Check, after removing NA:
+all_data1 %>%
+  filter(!is.na(Vattenha)) %>%
+  group_by(site) %>%
+  summarise(n_unique_Vattenha = n_distinct(Vattenha)) %>%
+  filter(n_unique_Vattenha > 1)
+# I'd like to see which combinations of Vattenha values appear together in the same site:
+all_data1 %>%
+  filter(!is.na(Vattenha)) %>%
+  group_by(site) %>%
+  summarise(Vattenha_values = paste(sort(unique(Vattenha)), collapse = ", ")) %>%
+  distinct(Vattenha_values) %>%
+  arrange(Vattenha_values)
+# there are 7 combinations
+
+# count values of "Vattenha" by site:
+Vattenha_freq_all_data1<-all_data1 %>%
+  filter(!is.na(Vattenha)) %>%
+  group_by(site, Vattenha) %>%
+  summarise(count = n()) %>%
+  arrange(site, Vattenha)
+
+# make a table with the counts:
+Vattenha_table_all_data1 <- tidyr::pivot_wider(Vattenha_freq_all_data1, names_from = Vattenha, values_from = count, values_fill = 0)
+# the majority seem to have most obs with one values and few with another. But there are exceptions. 
+# 1) I can take the one which is more frequent and merge later 
+names(Vattenha_table_all_data1)
+Vattenha_table_all_data1$Vattenha_fac <- colnames(Vattenha_table_all_data1[, c(2:4)])[
+  max.col(Vattenha_table_all_data1[, c(2:4)], ties.method = "random")]
+# To merge later with site level data!
+
+# transform in numeric variable and get the avg later
+# 1=Lugn, 2=strömmande, 3=stråkande
+# copy vector:
+all_data1$Vattenha_num<-all_data1$Vattenha
+all_data1$Vattenha_num[all_data1$Vattenha_num == "Lugn"] <- 1
+all_data1$Vattenha_num[all_data1$Vattenha_num == "Strö"] <- 2
+all_data1$Vattenha_num[all_data1$Vattenha_num == "Strå"] <- 3
+unique(all_data1$Vattenha_num)
+table(all_data1$Vattenha,all_data1$Vattenha_num)
+all_data1$Vattenha_num<-as.numeric(all_data1$Vattenha_num)
+
+# check substrate:
+# check Substr1
+table(all_data1$Substr1)
+unique(all_data1$Substr1)
+# slagg????
+# substitute " " values in Vandhind with NA: 
+all_data1$Substr1[all_data1$Substr1 == " "] <- NA
+# substitute "slagg" values in Vandhind with NA until I know more:
+all_data1$Substr1[all_data1$Substr1 == "Slagg"] <- NA
+
+# did it change over the years for the same site? yes
+all_data1 %>%
+  filter(!is.na(Substr1)) %>%
+  group_by(site) %>%
+  summarise(n_unique_Substr1 = n_distinct(Substr1)) %>%
+  filter(n_unique_Substr1 > 1)
+# I'd like to see which combinations of substr values appear together in the same site:
+all_data1 %>%
+  filter(!is.na(Substr1)) %>%
+  group_by(site) %>%
+  summarise(Substr1values = paste(sort(unique(Substr1)), collapse = ", ")) %>%
+  distinct(Substr1values) %>%
+  arrange(Substr1values)
+
+# count values of "Substr1" by site:
+Substr1_freq_all_data1<-all_data1 %>%
+  filter(!is.na(Substr1)) %>%
+  group_by(site, Substr1) %>%
+  summarise(count = n()) %>%
+  arrange(site, Substr1)
+
+# make a table with the counts:
+Substr1_table_all_data1 <- tidyr::pivot_wider(Substr1_freq_all_data1, names_from = Substr1, values_from = count, values_fill = 0)
+# 1) I can take the one which is more frequent and merge later 
+names(Substr1_table_all_data1)
+Substr1_table_all_data1$Substr1_fac <- colnames(Substr1_table_all_data1[, c(2:6,8:12)])[
+  max.col(Substr1_table_all_data1[, c(2:12)], ties.method = "random")]
+# To merge later with site level data!
+
+# 2) I can use an old numeric conversion from SERS(o Erik) and take later the avg by sites:
+# 1=Fin 2=sand 3=Grus 4=sten1+Sten2 5=block1+2+3 6=Häll 
+all_data1$Substr1_num<-all_data1$Substr1
+all_data1$Substr1_num[all_data1$Substr1_num == " "] <- NA
+all_data1$Substr1_num[all_data1$Substr1_num == "Fin"] <- 1
+all_data1$Substr1_num[all_data1$Substr1_num == "Sand"] <- 2
+all_data1$Substr1_num[all_data1$Substr1_num == "Grus"] <- 3
+all_data1$Substr1_num[all_data1$Substr1_num %in% c("Sten1", "Sten2", "Sten")] <- 4
+all_data1$Substr1_num[all_data1$Substr1_num %in% c("Block1", "Block2","Block3","Block")] <- 5
+all_data1$Substr1_num[all_data1$Substr1_num == "Häll"] <- 6
+unique(all_data1$Substr1_num)
+table(all_data1$Substr1,all_data1$Substr1_num)
+all_data1$Substr1_num<-as.numeric(all_data1$Substr1_num)
+
+# retain only variables of interest:
+all_data2 <- all_data1 %>% 
+  select(Öring0,Hflodomr, Vattendrag,site,Lokal,XKOORLOK, YKOORLOK,WGS84_Dec_N,WGS84_Dec_E,
+         Fiskedatum,ÅR,MÅNAD,Bredd, Maxdjup,Medeldju,Substr1,Substr1_num,Vattenha,
+         Vattenha_num,Vattente,Beskuggn,Vandhind,VTYP_ED,Typavpop,Hoh,Avstupp,
+         Avstner, mindistsj,LUTNING_PROM,MEDTEMPAR, MEDT_JULI,VIX,VIX_klass)
+head(all_data2)
+
+
+# explore hierarchical spatial and temporal structure. (NON NEED TO RUN THE SCRIPT FOR ANALYSES)
+# how many years per site? first and last year of sampling?
+site_years_all_data2<-all_data2 %>% 
+  group_by(Hflodomr,Vattendrag,site) %>% 
+  summarise(n_dinstic_years = n_distinct(ÅR),
+            first_year = min(ÅR),
+            last_year = max(ÅR)) %>% 
+  arrange(desc(n_dinstic_years))
 
 
 
