@@ -413,10 +413,10 @@ ggplot(subset(jamtland3, Vattendrag %in% c("Tvärån")),
   labs(title="")+
   theme_classic(base_size=13)
 
-#### to divide the data in into ICES subdivisons based on HFLODOMR (NO NEED) ####
+#### to divide the data in into ICES subdivisons based on HFLODOMR ####
 
-# Script for HFLODOMR2 (numerical version of HFLODOMR)
-# not needed in my case I think, as Hflodomr is already numeric
+#### using KM script to assign ICES subdivision based on HFLODOMR2
+
 library(plyr)
 jamtland3$HFLODOMR2<-jamtland3$Hflodomr;unique(jamtland3$HFLODOMR2)
 jamtland3$HFLODOMR2<-as.character(jamtland3$HFLODOMR2);unique(jamtland3$HFLODOMR2)
@@ -438,7 +438,6 @@ jamtland3$HFLODOMR2 <- revalue(jamtland3$HFLODOMR2,
                                  "19020"="19.5","18019"="18.5","17018"="17.5","16017"="16.5","13016"="13.5","2003"="2.5","23024"="23.5"));unique(jamtland3$HFLODOMR2)
 jamtland3$HFLODOMR2<-as.numeric(jamtland3$HFLODOMR2);unique(jamtland3$HFLODOMR2)
 
-### using KM script to assign ICES subdivision based on HFLODOMR2
 
 jamtland3$SD<-NA
 # SD 31
