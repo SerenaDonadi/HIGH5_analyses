@@ -402,6 +402,9 @@ colnames(df.model.site_all_data2)
 # remove column not needed:
 df.model.site_all_data2<-df.model.site_all_data2 %>%
   select(-c(Block1 ,Block2 ,Block3 ,Block,Sten1,Sten2,Sten, Grus,Fin, Sand, Häll, Strå,Strö,Lugn)) 
+# convert VTYP_ED_score into factor:
+df.model.site_all_data2$VTYP_ED_score<-as.factor(df.model.site_all_data2$VTYP_ED_score)
+table(df.model.site_all_data2$VTYP_ED_score)
 
 # change names for merging later:
 colnames(df.model.site_all_data2)[which(names(df.model.site_all_data2) == "mean_trout0")] <- "Trout0P"
@@ -937,18 +940,35 @@ summary(all_sites_all_data)
 table(all_sites_all_data$method_final)
 table(all_sites_all_data$fallback_used)
 
-# TO DO
 # create a variable showing whether the mean trout density per site is above/below 
 # the avg at SD - or catchment. Here is avg SD doublecheck: ok
 table(all_sites_all_data$thr_val,all_sites_all_data$SD)
 table(all_sites_all_data$thr_val,all_sites_all_data$Hflodomr)
 
 plot(all_sites_all_data$mean_density, all_sites_all_data$thr_val)
+abline(a = 0, b = 1, col = "red", lty = 2)
 all_sites_all_data$good_or_bad <- ifelse(all_sites_all_data$mean_density - all_sites_all_data$thr_val >= 0, "good", "bad")
 table(all_sites_all_data$good_or_bad)
 table(all_sites_all_data$method_final,all_sites_all_data$good_or_bad)
 
+###### exploratory plots (sites as replicates)####
+ggplot(all_sites_all_data, aes(x=Lokal, y=clx_final, col = Vdrag, fill=Vdrag)) +
+  geom_bar(stat="identity")+
+  #facet_wrap(~Vdrag)+
+  theme_bw(base_size=15)+
+  theme(legend.position="none")
 
+ggplot(all_sites_all_data, aes(x = mean_width , y = clx_final, col=VTYP_ED_score)) +
+  geom_point()+
+  theme_bw(base_size=15)
+
+ggplot(all_sites_all_data, aes(x = mean_mindistsj , y = clx_final, col=VTYP_ED_score, size=Vandhind_score)) +
+  geom_point()+
+  theme_bw(base_size=15)
+
+ggplot(all_sites_all_data, aes(x = mean_VIX, y = clx_final)) +
+  geom_point()+
+  theme_bw(base_size=15)
 
 #####
 # work flow

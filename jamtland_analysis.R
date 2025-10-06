@@ -382,7 +382,8 @@ colnames(df.model.site2)
 # remove column not needed:
 df.model.site2<-df.model.site2 %>%
   select(-c(Block1 ,Block2 ,Block3 ,Block,Sten1,Sten2,Sten, Grus," ", Sand, Häll, Strå,Strö,Lugn)) 
-
+# convert VTYP_ED_score into factor:
+df.model.site2$VTYP_ED_score<-as.factor(df.model.site2$VTYP_ED_score)
 
 # change names for merging later:
 colnames(df.model.site2)[which(names(df.model.site2) == "mean_trout0")] <- "Trout0P"
@@ -1018,11 +1019,11 @@ ggplot(all_sites, aes(x=Lokal, y=clx_final, col = Vdrag, fill=Vdrag)) +
   theme_bw(base_size=15)+
   theme(legend.position="bottom")
 
-ggplot(all_sites, aes(x = mean_width , y = clx_final, col=VTYP_ED_score_f)) +
+ggplot(all_sites, aes(x = mean_width , y = clx_final, col=VTYP_ED_score)) +
   geom_point()+
   theme_bw(base_size=15)
 
-ggplot(all_sites, aes(x = mean_mindistsj , y = clx_final, col=VTYP_ED_score_f, size=Vandhind_score)) +
+ggplot(all_sites, aes(x = mean_mindistsj , y = clx_final, col=VTYP_ED_score, size=Vandhind_score)) +
   geom_point()+
   theme_bw(base_size=15)
   
@@ -1033,6 +1034,7 @@ ggplot(all_sites, aes(x = mean_VIX, y = clx_final)) +
 hist(all_sites$VTYP_ED_score)
 hist(all_sites$Vandhind_score)
 table(all_sites$VTYP_ED_score_f, all_sites$Vandhind_score)
+summary(all_sites)
 
 ##### recursive regression trees####
 library(rpart)
