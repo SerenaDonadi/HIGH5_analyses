@@ -971,12 +971,107 @@ ggplot(all_sites_all_data, aes(x = mean_VIX, y = clx_final)) +
   theme_bw(base_size=15)
 
 #####
-# work flow
+# validation of Jämtaland model in Dalarna
 #####
 # using Dalarna data:
 # 1) calculate breakpoints on sites with at least 10 years of samplig
-# 2) on this same subset, calculate predicted breakpoint using jämtland model
+# 2) on this same subset, calculate predicted breakpoints using jämtland model
 # 3) compare the two
 
+unique(all_sites_all_data$Län)
 
-# select samples in dalarna, 
+# select samples in dalarna: 
+dalarna <- all_sites_all_data %>% 
+  filter(Län == "Dalarna")
+
+summary(dalarna)
+# 2315 sites, 2186 NAs for breakpoints -> 129 sites with breakpoints
+
+#### using models including all possible factors and info on site ####
+# (with or without catchment variables, they are not important)
+
+### predictions of pruned model are:
+dalarna %>% 
+  filter(!is.na(clx_final)) %>% # to get teh correct N used in the calculation of the mean
+  filter(mean_density<19.27)%>%
+  summarise(n_sites = n(),
+            avg_clx = mean(clx_final, na.rm = TRUE))
+# 10 vs jamtland predictions of 10
+# 115 vs 74 sites
+
+dalarna %>% 
+  filter(!is.na(clx_final)) %>%
+  filter(mean_density>=19.27)%>%
+  summarise(n_sites = n(),
+            avg_clx = mean(clx_final, na.rm = TRUE))
+# 57 vs jamtland predictions of 66
+# 14 vs 10 sites
+
+### predictions of not pruned model are:
+dalarna %>% 
+  filter(!is.na(clx_final)) %>%
+  filter(mean_density<7.112)%>%
+  summarise(n_sites = n(),
+            avg_clx = mean(clx_final, na.rm = TRUE))
+# 5 vs jamtland predictions of 5
+# 80 vs 52 sites
+
+dalarna %>% 
+  filter(!is.na(clx_final)) %>%
+  filter(mean_density<19.27)%>%
+  filter (mean_density>= 7.112) %>%
+  summarise(n_sites = n(),
+            avg_clx = mean(clx_final, na.rm = TRUE))
+# 21 vs jamtland predictions of 21
+# 35 vs 22 sites
+
+dalarna %>% 
+  filter(!is.na(clx_final)) %>%
+  filter(mean_density>=19.27)%>%
+  summarise(n_sites = n(),
+            avg_clx = mean(clx_final, na.rm = TRUE))
+# 57 vs jamtland predictions of 66
+# 14 vs 10 sites
+
+### using instead surrogate mean_avgdepth
+dalarna %>% 
+  filter(!is.na(clx_final)) %>%
+  filter(mean_avgdepth<0.1119792)%>%
+  summarise(n_sites = n(),
+            avg_clx = mean(clx_final, na.rm = TRUE))
+# 16 vs jamtland predictions of 66
+# 10 vs 10 sites
+
+dalarna %>% 
+  filter(!is.na(clx_final)) %>%
+  filter(mean_avgdepth>=0.1119792)%>%
+  summarise(n_sites = n(),
+            avg_clx = mean(clx_final, na.rm = TRUE))
+# 15 vs jamtland predictions of 10
+# 119 vs 64 sites
+
+# using instead surrogate Substr1_fac 
+# approximate! jämtland model wants Substr1_fac split as  LLLLLRLL, but in 
+# jämtland there is little grus, and no sand or häll. 
+# I split as with or without sten + grus + sand:
+
+dalarna %>% 
+  filter(!is.na(clx_final)) %>%
+  distinct(Substr1_fac)
+
+dalarna %>%
+  filter(!is.na(clx_final)) %>%
+  filter(Substr1_fac %in% c("Block","Block1","Block2","Block3")) %>%
+  summarise(n_sites = n(),
+            avg_clx = mean(clx_final, na.rm = TRUE))
+# 13 vs jamtland predictions of 10
+# 72 vs 74 sites
+
+dalarna %>%
+  filter(!is.na(clx_final)) %>%
+  filter(!(Substr1_fac %in% c("Block","Block1","Block2","Block3"))) %>%
+  summarise(n_sites = n(),
+            avg_clx = mean(clx_final, na.rm = TRUE))
+# 17 vs jamtland predictions of 66
+# 57 vs 10 sites
+
