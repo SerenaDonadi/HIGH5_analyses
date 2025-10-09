@@ -402,8 +402,8 @@ colnames(df.model.site_all_data2)
 # remove column not needed:
 df.model.site_all_data2<-df.model.site_all_data2 %>%
   select(-c(Block1 ,Block2 ,Block3 ,Block,Sten1,Sten2,Sten, Grus,Fin, Sand, Häll, Strå,Strö,Lugn)) 
-# convert VTYP_ED_score into factor:
-df.model.site_all_data2$VTYP_ED_score<-as.factor(df.model.site_all_data2$VTYP_ED_score)
+# keep VTYP_ED_score as continuous and make a copy as factor:
+df.model.site_all_data2$VTYP_ED_score_fac<-as.factor(df.model.site_all_data2$VTYP_ED_score)
 table(df.model.site_all_data2$VTYP_ED_score)
 
 # change names for merging later:
@@ -962,7 +962,7 @@ ggplot(all_sites_all_data, aes(x = mean_width , y = clx_final, col=VTYP_ED_score
   geom_point()+
   theme_bw(base_size=15)
 
-ggplot(all_sites_all_data, aes(x = mean_mindistsj , y = clx_final, col=VTYP_ED_score, size=Vandhind_score)) +
+ggplot(all_sites_all_data, aes(x = mean_mindistsj , y = clx_final, col=VTYP_ED_score_fac, size=Vandhind_score)) +
   geom_point()+
   theme_bw(base_size=15)
 
@@ -1074,4 +1074,70 @@ dalarna %>%
             avg_clx = mean(clx_final, na.rm = TRUE))
 # 17 vs jamtland predictions of 66
 # 57 vs 10 sites
+
+#### using models including all possible factors but no info on site ####
+# (with or without catchment variables, they are not important)
+
+### predictions of pruned model are:
+dalarna %>% 
+  filter(!is.na(clx_final)) %>% # to get the correct N used in the calculation of the mean
+  filter(mean_Avstupp>=4.45)%>%
+  summarise(n_sites = n(),
+            avg_clx = mean(clx_final, na.rm = TRUE))
+# 9 vs jamtland predictions of 9
+# 63 vs 61 sites
+
+dalarna %>% 
+  filter(!is.na(clx_final)) %>% # to get the correct N used in the calculation of the mean
+  filter(mean_Avstupp<4.45)%>%
+  summarise(n_sites = n(),
+            avg_clx = mean(clx_final, na.rm = TRUE))
+# 20 vs jamtland predictions of 36
+# 66 vs 23 sites
+
+### predictions of not pruned model are:
+dalarna %>% 
+  filter(!is.na(clx_final)) %>% # to get the correct N used in the calculation of the mean
+  filter(mean_Avstupp>=4.45)%>%
+  filter(VTYP_ED_score<0.5)%>% # values are 0 and 1. this is resident
+  summarise(n_sites = n(),
+            avg_clx = mean(clx_final, na.rm = TRUE))
+# 8 vs jamtland predictions of 7
+# 52 vs 43 sites
+
+dalarna %>% 
+  filter(!is.na(clx_final)) %>% # to get the correct N used in the calculation of the mean
+  filter(mean_Avstupp>=4.45)%>%
+  filter(VTYP_ED_score>=0.5)%>% # values are 0 and 1. this is migrating
+  summarise(n_sites = n(),
+            avg_clx = mean(clx_final, na.rm = TRUE))
+# 14 vs jamtland predictions of 15
+# 11 vs 18 sites
+
+dalarna %>% 
+  filter(!is.na(clx_final)) %>% # to get the correct N used in the calculation of the mean
+  filter(mean_Avstupp<4.45)%>%
+  summarise(n_sites = n(),
+            avg_clx = mean(clx_final, na.rm = TRUE))
+# 20 vs jamtland predictions of 36
+# 66 vs 23 sites
+
+# using instead surrogate mean_mindistsj  
+### predictions of pruned model are:
+dalarna %>% 
+  filter(!is.na(clx_final)) %>% # to get the correct N used in the calculation of the mean
+  filter(mean_mindistsj >=4.45)%>%
+  summarise(n_sites = n(),
+            avg_clx = mean(clx_final, na.rm = TRUE))
+# 8 vs jamtland predictions of 9
+# 41 vs 61 sites
+
+dalarna %>% 
+  filter(!is.na(clx_final)) %>% # to get the correct N used in the calculation of the mean
+  filter(mean_mindistsj<4.45)%>%
+  summarise(n_sites = n(),
+            avg_clx = mean(clx_final, na.rm = TRUE))
+# 18 vs jamtland predictions of 36
+# 88 vs 23 sites
+
 
