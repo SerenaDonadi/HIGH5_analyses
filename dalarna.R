@@ -1140,4 +1140,58 @@ dalarna %>%
 # 18 vs jamtland predictions of 36
 # 88 vs 23 sites
 
+#### using models including only variables in the THS ####
 
+# pruned: only substrate is considered:
+dalarna %>%
+  filter(!is.na(clx_final)) %>% # to get the correct N used in the calculation of the mean
+  filter(Substr1_fac %in% c("Block","Block1","Block2","Block3")) %>%
+  summarise(n_sites = n(),
+            avg_clx = mean(clx_final, na.rm = TRUE))
+# 13 vs jamtland predictions of 11
+# 72 vs 52 sites
+
+dalarna %>%
+  filter(!is.na(clx_final)) %>% # to get the correct N used in the calculation of the mean
+  filter(!(Substr1_fac %in% c("Block","Block1","Block2","Block3"))) %>%
+  summarise(n_sites = n(),
+            avg_clx = mean(clx_final, na.rm = TRUE))
+# 17 vs jamtland predictions of 26
+# 57 vs 32 sites
+
+# Not pruned:
+dalarna %>%
+  filter(!is.na(clx_final)) %>% # to get the correct N used in the calculation of the mean
+  filter(Substr1_fac %in% c("Block","Block1","Block2","Block3")) %>%
+  filter(mean_avgdepth>=0.205) %>%
+  summarise(n_sites = n(),
+            avg_clx = mean(clx_final, na.rm = TRUE))
+# 10 vs jamtland predictions of 8
+# 28 vs 32 sites
+
+dalarna %>%
+  filter(!is.na(clx_final)) %>% # to get the correct N used in the calculation of the mean
+  filter(Substr1_fac %in% c("Block","Block1","Block2","Block3")) %>%
+  filter(mean_avgdepth<0.205) %>%
+  summarise(n_sites = n(),
+            avg_clx = mean(clx_final, na.rm = TRUE))
+# 16 vs jamtland predictions of 14
+# 44 vs 20 sites
+
+dalarna %>%
+  filter(!is.na(clx_final)) %>% # to get the correct N used in the calculation of the mean
+  filter(!(Substr1_fac %in% c("Block","Block1","Block2","Block3"))) %>%
+  filter(mean_width>=6.19) %>%
+  summarise(n_sites = n(),
+            avg_clx = mean(clx_final, na.rm = TRUE))
+# 9 vs jamtland predictions of 19
+# 18 vs 19 sites
+
+dalarna %>%
+  filter(!is.na(clx_final)) %>% # to get the correct N used in the calculation of the mean
+  filter(!(Substr1_fac %in% c("Block","Block1","Block2","Block3"))) %>%
+  filter(mean_width<6.19) %>%
+  summarise(n_sites = n(),
+            avg_clx = mean(clx_final, na.rm = TRUE))
+# 20 vs jamtland predictions of 37
+# 39 vs 13 sites

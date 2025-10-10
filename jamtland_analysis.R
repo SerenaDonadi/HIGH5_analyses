@@ -1066,9 +1066,19 @@ text(M1fit)
 M1a<-rpart(clx_final~mean_width + mean_LUTNING_PROM + mean_avgdepth+ Substr1_fac + Vattenha_fac + mean_shade,
           control = rpart.control(xval = 10, minbucket = 10, cp = 0.01), data = all_sites)
 print(M1a)
-plot(M1a)
-text(M1a)
+par(mar=rep(0.2,4))
+plot(M1a, uniform = TRUE, branch = 1, compress = TRUE, margin = 0.1)
+plot(M1a, uniform = TRUE, branch = 0, compress = TRUE,margin = 0.1)
+text(M1a,use.n = TRUE,all = TRUE, fancy = TRUE, cex = 0.9)
 summary(M1a)
+par(mar=rep(4,4))
+rsq.rpart(M1a)
+plot(predict(M1a), jitter(resid(M1a)))
+abline(h = 0, lty = 2)
+
+prune.rpart(M1a, cp = 0.09)
+
+
 
 # Explore the difference between Gini and information Index as splitting rule in M1
 M1b<-rpart(clx_final~mean_width + mean_LUTNING_PROM + mean_avgdepth+ Substr1_fac + Vattenha_fac + mean_shade,
