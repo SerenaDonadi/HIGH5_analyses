@@ -344,7 +344,7 @@ site_years<-jamtland3 %>%
             last_year = max(ÅR)) %>% 
   arrange(desc(n_dinstic_years))
 
-#### group variables by site: ####
+##### group variables by site: ####
 # make a dataset with only the sites (one row per site), and bring along covaraites for later analyses
 
 df.model.site <- jamtland3 %>%
@@ -414,7 +414,7 @@ ggplot(subset(jamtland3, Vattendrag %in% c("Tvärån")),
   labs(title="")+
   theme_classic(base_size=13)
 
-#### to divide the data in into ICES subdivisons based on HFLODOMR ####
+##### to divide the data in into ICES subdivisons based on HFLODOMR ####
 
 #### using KM script to assign ICES subdivision based on HFLODOMR2
 
@@ -479,7 +479,7 @@ detach("package:plyr", unload=TRUE)
 detach("package:ExcelFunctionsR", unload=TRUE)
 
 
-### breakpoint analysis ####
+##### breakpoint analysis ####
 # using the script from 19 aug 2025 of Katarina Magnusson
 
 # calculating breakpoint values (hocky stick) 
@@ -873,7 +873,7 @@ results.clx2 <- get_clx_all_methods_select_qc(df2,
 plot(results.clx$clx_final,results.clx2$clx_final) #
 
 
-#### plots breakpoints ####
+##### plots breakpoints ####
 # script from Katarina Magnusson 27 aug 2025
 
 # PLOT function
@@ -1002,6 +1002,8 @@ plot(all_sites$mean_density, all_sites$thr_val)
 all_sites$good_or_bad <- ifelse(all_sites$mean_density - all_sites$thr_val >= 0, "good", "bad")
 table(all_sites$good_or_bad)
 table(all_sites$method_final,all_sites$good_or_bad)
+# make catchment a factor:
+all_sites$Hflodomr<-as.factor(all_sites$Hflodomr)
 
 # explanatory factors:
 # Hflodomr as random: test correlations of resid
@@ -1012,7 +1014,7 @@ table(all_sites$method_final,all_sites$good_or_bad)
 # trout variables: VTYP_ED_score, mean_density (mean site density), thr_val (mean catchment density)
 # interactions to test: mean_Hoh*mean_width
 
-###### exploratory plots (sites as replicates)####
+##### exploratory plots (sites as replicates)####
 ggplot(all_sites, aes(x=Lokal, y=clx_final, col = Vdrag, fill=Vdrag)) +
   geom_bar(stat="identity")+
   #facet_wrap(~Vdrag)+
@@ -1267,3 +1269,176 @@ par(mar=rep(0.2,4))
 plot(M4fit, branch = 0.3, compress = TRUE,margin = 0.1)
 text(M4fit,use.n = TRUE,all = TRUE, fancy = TRUE, cex = 0.9)
 
+
+##### multiple regression ####
+
+# response
+hist(all_sites$clx_final)
+summary(all_sites$clx_final)
+
+# poisson, neg bin, gamma or transform
+
+# random:
+table(all_sites$Vdrag,all_sites$Lokal)
+table(all_sites$Hflodomr,all_sites$Vdrag)
+
+# explanatory: 
+# THS:
+hist(all_sites$mean_width)
+hist(all_sites$mean_LUTNING_PROM)
+hist(all_sites$mean_avgdepth)
+table(all_sites$Substr1_fac)
+table(all_sites$Vattenha_fac)
+hist(all_sites$mean_shade)
+
+# others
+hist(all_sites$Vandhind_score)
+hist(all_sites$mean_Hoh) 
+hist(all_sites$mean_mindistsj)
+hist(all_sites$mean_Avstner)
+hist(all_sites$mean_Avstupp)
+hist(all_sites$mean_MEDTEMPAR)
+hist(all_sites$mean_MEDT_JULI)
+table(all_sites$VTYP_ED_score)
+
+# info on catchment
+table(all_sites$Hflodomr)
+hist(all_sites$thr_val)
+
+# info on site
+hist(all_sites$mean_density)
+table(all_sites$fallback_used)
+table(all_sites$good_or_bad)
+# Consider altitude * stream width
+
+### model with only THS:
+
+# beyond optimal model:
+M1<-lm(clx_final~mean_width+mean_LUTNING_PROM+mean_avgdepth+Substr1_fac+
+         Vattenha_fac+mean_shade, data=all_sites)
+vif(M1)
+summary(M1)
+anova(M1)
+plot(M1)
+visreg(M1)
+# maybe at least one outlier to remove. The one with highest breakpoint:
+dotchart(all_sites$clx_final)
+table(all_sites$clx_final)
+
+# remove the highest breakpoint obs:
+M1a<-lm(clx_final~mean_width+mean_LUTNING_PROM+mean_avgdepth+Substr1_fac+
+         Vattenha_fac+mean_shade, data = all_sites, subset = clx_final <= 100)
+vif(M1a)
+summary(M1a)
+anova(M1a)
+plot(M1a)
+visreg(M1a)
+
+# including a random factor - all sites
+M0<-gls(clx_final~mean_width+mean_LUTNING_PROM+mean_avgdepth+Substr1_fac+
+           Vattenha_fac+mean_shade, 
+         method="REML",na.action=na.omit,
+         data = all_sites)
+M2<-lme(clx_final~mean_width+mean_LUTNING_PROM+mean_avgdepth+Substr1_fac+
+          Vattenha_fac+mean_shade, 
+         random=~1|Hflodomr/Vdrag,method="REML",na.action=na.omit,
+         data = all_sites)
+anova(M0,M2)
+
+# final on all sites:
+M2<-lme(clx_final~mean_width+mean_LUTNING_PROM+mean_avgdepth+Substr1_fac+
+          Vattenha_fac+mean_shade, 
+        random=~1|Hflodomr/Vdrag,method="REML",na.action=na.omit,
+        data = all_sites)
+anova.lme(M2, type = "marginal", adjustSigma = F) 
+rsquared(M2)
+summary(M2)
+plot(M2)
+library(ggeffects)
+pred <- ggpredict(M2, "Substr1_fac")
+pred <- ggemmeans(M2, "Substr1_fac")
+pred <- ggeffect(M2, "Substr1_fac")
+plot(pred)
+
+# including a random factor - without highest clx
+M0a<-gls(clx_final~mean_width+mean_LUTNING_PROM+mean_avgdepth+Substr1_fac+
+           Vattenha_fac+mean_shade, 
+         method="REML",na.action=na.omit,
+         data = all_sites, subset = clx_final <= 100)
+M2a<-lme(clx_final~mean_width+mean_LUTNING_PROM+mean_avgdepth+Substr1_fac+
+           Vattenha_fac+mean_shade, 
+         random=~1|Hflodomr/Vdrag,method="REML",na.action=na.omit,
+         data = all_sites, subset = clx_final <= 100)
+anova(M0a,M2a)
+
+# final:
+M2a<-lme(clx_final~mean_width+mean_LUTNING_PROM+mean_avgdepth+Substr1_fac+
+           Vattenha_fac+mean_shade, 
+         random=~1|Hflodomr/Vdrag,method="REML",na.action=na.omit,
+         data = all_sites, subset = clx_final <= 100)
+anova.lme(M2a, type = "marginal", adjustSigma = F) 
+rsquared(M2a)
+summary(M2a)
+plot(M2a)
+
+# trying different error distribution-all sites
+# withouth random
+M3<-glm.nb(clx_final~mean_width+mean_LUTNING_PROM+mean_avgdepth+Substr1_fac+
+  Vattenha_fac+mean_shade, link="log", na.action=na.omit,
+  data = all_sites)
+drop1(M3,test = "Chi")       
+summary(M3)
+plot(M3)
+
+# trying different error distribution-all sites
+# with random
+M3a<-glmer(clx_final~mean_width+mean_LUTNING_PROM+mean_avgdepth+Substr1_fac+
+             Vattenha_fac+mean_shade+(1|Hflodomr/Vdrag), family = poisson(link = "log"), 
+           na.action=na.omit,data = all_sites)
+library(car)
+Anova(M3a, type = "III")
+rsquared(M3a)
+plot(M3a)
+visreg(M3a)
+
+# trying different error distribution-without highest breakpoint obs
+# withouth random
+M3<-glm.nb(clx_final~mean_width+mean_LUTNING_PROM+mean_avgdepth+Substr1_fac+
+             Vattenha_fac+mean_shade, link="log", na.action=na.omit,
+           data = all_sites,subset = clx_final <= 100)
+drop1(M3,test = "Chi")       
+summary(M3)
+plot(M3)
+
+# trying different error distribution-without highest breakpoint obs
+# with random
+M3a<-glmer(clx_final~mean_width+mean_LUTNING_PROM+mean_avgdepth+Substr1_fac+
+             Vattenha_fac+mean_shade+(1|Hflodomr/Vdrag), family = poisson(link = "log"), 
+           na.action=na.omit,data = all_sites, subset = clx_final <= 100)
+library(car)
+Anova(M3a, type = "III")
+rsquared(M3a)
+plot(M3a)
+visreg(M3a)
+
+# trying standardization of explanatory variables
+# standardize variables:
+all_sites_std <- all_sites %>%
+  mutate(across(c(mean_width,mean_LUTNING_PROM,mean_avgdepth,
+                  mean_shade), 
+                ~ scale(.) %>% as.vector()),
+         Substr1_fac = Substr1_fac, # categ variables are not standardized
+         Vattenha_fac = Vattenha_fac,
+         Hflodomr = Hflodomr, # bring along the random factors
+         Vdrag = Vdrag)
+
+# run what was the soundest model from exploratory analyses (poisson, random 
+# factors, all replicates) with standardized explanatory variables
+ 
+M1<-glmer(clx_final~mean_width+mean_LUTNING_PROM+mean_avgdepth+Substr1_fac+
+             Vattenha_fac+mean_shade+(1|Hflodomr/Vdrag), family = poisson(link = "log"), 
+           na.action=na.omit,data = all_sites_std)
+Anova(M1, type = "III")
+rsquared(M1)
+plot(M1)
+visreg(M1)
