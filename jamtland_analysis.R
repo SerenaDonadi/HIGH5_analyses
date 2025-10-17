@@ -1311,7 +1311,7 @@ table(all_sites$fallback_used)
 table(all_sites$good_or_bad)
 # Consider altitude * stream width
 
-### model with only THS:
+### model with only THS ####
 
 # beyond optimal model:
 M1<-lm(clx_final~mean_width+mean_LUTNING_PROM+mean_avgdepth+Substr1_fac+
@@ -1441,4 +1441,100 @@ M1<-glmer(clx_final~mean_width+mean_LUTNING_PROM+mean_avgdepth+Substr1_fac+
 Anova(M1, type = "III")
 rsquared(M1)
 plot(M1)
-visreg(M1)
+visreg(M1, scale='response')
+visreg(M1, "Substr1_fac", scale='response', partial = F, line=list(col="red"), 
+       cex.main=1.5, cex.lab=1.5, type="conditional")
+
+### models with all factors but no info on site ####
+
+# exploring collinearity
+scatterplotMatrix(~mean_width+mean_LUTNING_PROM+mean_avgdepth+
+                     mean_shade+ Vandhind_score + mean_Hoh +
+                     mean_MEDTEMPAR + mean_MEDT_JULI  +
+                     mean_Avstner + mean_Avstupp + mean_mindistsj,data=all_sites)
+
+# pairs(data,panel=panel.smooth)
+
+# include: altitude or temp 
+# using best model specification from exploratory analyses (poisson, random fact)
+M1<-glmer(clx_final~mean_Hoh+mean_width+mean_LUTNING_PROM+mean_avgdepth+
+            Vattenha_fac+mean_shade+ Substr1_fac+
+            Vandhind_score + VTYP_ED_score +
+             WGS84_Dec_N + # mean_MEDTEMPAR + #mean_MEDT_JULI + +
+            mean_Avstner + mean_Avstupp + # mean_mindistsj+
+            (1|Hflodomr/Vdrag), 
+          family = poisson(link = "log"), na.action=na.omit,data = all_sites)
+# vif(M1)
+Anova(M1, type = "III")
+rsquared(M1)
+summary(M1)
+plot(M1)
+visreg(M1, "VTYP_ED_score", scale='response', partial = F, line=list(col="red"), 
+       cex.main=1.5, cex.lab=1.5, type="conditional")
+
+# interaction altit*width ns
+# removing latitude : rwsults are same
+
+# using stepwise backward deletion approach:
+M1<-glmer(clx_final~mean_Hoh+mean_width+mean_LUTNING_PROM+mean_avgdepth+
+            Vattenha_fac+mean_shade+ Substr1_fac+
+            Vandhind_score + VTYP_ED_score +
+            WGS84_Dec_N + # mean_MEDTEMPAR + #mean_MEDT_JULI + +
+            mean_Avstner + mean_Avstupp + # mean_mindistsj+
+            (1|Hflodomr/Vdrag), 
+          family = poisson(link = "log"), na.action=na.omit,data = all_sites)
+M1.Drop1 <- update(M1, .~. -mean_Hoh)
+AIC(M1,M1.Drop1)
+logLik(M1)
+logLik(M1.Drop1)
+
+# the model has issues:
+# Overfitting
+# too complex random effects (e.g., nested structures with little data).
+# Multicollinearity among predictors.
+# Sparse data or low variability in some predictors or random effects.
+# Singular fit: some random effect variances are estimated as zero.
+
+# 1. Check for singularity:
+isSingular(M1, tol = 1e-4)
+# FALSE. model is not overparameterized for the data.
+
+# simplify random str:
+M2<-glmer(clx_final~mean_Hoh+mean_width+mean_LUTNING_PROM+mean_avgdepth+
+            Vattenha_fac+mean_shade+ Substr1_fac+
+            Vandhind_score + VTYP_ED_score +
+            WGS84_Dec_N + # mean_MEDTEMPAR + #mean_MEDT_JULI + +
+            mean_Avstner + mean_Avstupp + # mean_mindistsj+
+            (1|Hflodomr), 
+          family = poisson(link = "log"), na.action=na.omit,data = all_sites)
+logLik(M2)
+AIC(M2)
+
+# use standardized variables:
+all_sites_std <- all_sites %>%
+  mutate(across(c(mean_Hoh,mean_width,mean_LUTNING_PROM,mean_avgdepth,
+                  mean_shade,Vandhind_score,WGS84_Dec_N,mean_Avstner,mean_Avstupp), 
+                ~ scale(.) %>% as.vector()),
+         Substr1_fac = Substr1_fac, # categ variables are not standardized
+         Vattenha_fac = Vattenha_fac,
+         VTYP_ED_score = VTYP_ED_score,
+         Hflodomr = Hflodomr, # bring along the random factors
+         Vdrag = Vdrag)
+# try with most complex random str: nope
+# simplify random str:
+M3<-glmer(clx_final~mean_Hoh+mean_width+mean_LUTNING_PROM+mean_avgdepth+
+            Vattenha_fac+mean_shade+ Substr1_fac+
+            Vandhind_score + VTYP_ED_score +
+            WGS84_Dec_N + # mean_MEDTEMPAR + #mean_MEDT_JULI + +
+            mean_Avstner + mean_Avstupp + # mean_mindistsj+
+            (1|Hflodomr), 
+          family = poisson(link = "log"), na.action=na.omit,data = all_sites_std)
+logLik(M3)
+AIC(M3)
+#reducing factors:
+M3<-glmer(clx_final~mean_width+
+            (1|Hflodomr), 
+          family = poisson(link = "log"), na.action=na.omit,data = all_sites_std)
+logLik(M3)
+AIC(M3)
+
