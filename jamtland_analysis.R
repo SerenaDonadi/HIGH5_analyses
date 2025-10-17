@@ -1538,3 +1538,60 @@ M3<-glmer(clx_final~mean_width+
 logLik(M3)
 AIC(M3)
 
+# more exploration:
+# using dist to lake instead of avstupp och ner: same results
+# using mean_MEDTEMPAR instead of lat: same results
+# deleting some less measured variables: vand score and pop type
+M4<-glmer(clx_final~mean_Hoh+mean_width+mean_LUTNING_PROM+mean_avgdepth+
+            Vattenha_fac+mean_shade+ Substr1_fac+
+            #Vandhind_score + VTYP_ED_score +
+            WGS84_Dec_N + # mean_MEDTEMPAR + #mean_MEDT_JULI + +
+            mean_mindistsj+ #mean_Avstner + mean_Avstupp + # mean_mindistsj+ 
+            (1|Hflodomr/Vdrag), 
+          family = poisson(link = "log"), na.action=na.omit,data = all_sites)
+Anova(M4, type = "III")
+rsquared(M4)
+summary(M4)
+plot(M4)
+visreg(M4, "mean_mindistsj", scale='response', partial = F, line=list(col="red"), 
+       cex.main=1.5, cex.lab=1.5, type="conditional")
+
+# find a model with all signif factors:
+M4<-glmer(clx_final~Substr1_fac+#mean_avgdepth+ # mean_LUTNING_PROM
+            #Vattenha_fac+mean_width
+            #Vandhind_score + VTYP_ED_score + mean_Hoh+mean_shade
+            WGS84_Dec_N + # mean_MEDTEMPAR + #mean_MEDT_JULI + +
+            mean_mindistsj+ #mean_Avstner + mean_Avstupp + # mean_mindistsj+ 
+            (1|Hflodomr/Vdrag), 
+          family = poisson(link = "log"), na.action=na.omit,data = all_sites)
+Anova(M4, type = "III")
+
+
+### models with all factors and info on site ####
+
+# starting from the best model found above (reduced factors to increase power)
+M5<-glmer(clx_final~mean_Hoh+mean_width+mean_LUTNING_PROM+mean_avgdepth+
+            Vattenha_fac+ Substr1_fac+mean_density+
+            #Vandhind_score + VTYP_ED_score + mean_shade
+            WGS84_Dec_N + # mean_MEDTEMPAR + #mean_MEDT_JULI + +
+            mean_mindistsj+ #mean_Avstner + mean_Avstupp + 
+            (1|Hflodomr/Vdrag), 
+          family = poisson(link = "log"), na.action=na.omit,data = all_sites)
+Anova(M5, type = "III")
+rsquared(M5)
+summary(M5)
+plot(M5)
+visreg(M5, "mean_density", scale='response', partial = F, line=list(col="red"), 
+       cex.main=1.5, cex.lab=1.5, type="conditional")
+
+# substituting mean density with catchment mean: as model with no info on site
+M6<-glmer(clx_final~mean_Hoh+mean_width+mean_LUTNING_PROM+mean_avgdepth+
+            Vattenha_fac+ Substr1_fac+good_or_bad+
+            #Vandhind_score + VTYP_ED_score + mean_shade
+            WGS84_Dec_N + # mean_MEDTEMPAR + #mean_MEDT_JULI + +
+            mean_mindistsj+ #mean_Avstner + mean_Avstupp + 
+            (1|Hflodomr/Vdrag), 
+          family = poisson(link = "log"), na.action=na.omit,data = all_sites)
+Anova(M6, type = "III")
+
+table(all_sites$good_or_bad)
